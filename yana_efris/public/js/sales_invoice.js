@@ -19,7 +19,7 @@
 	};
 })();
 
-frappe.ui.form.on("Quotation", {
+frappe.ui.form.on("Sales Invoice", {
 	currency(frm) {
 		if (frm.doc.currency && frm.doc.company) {
 			frappe.call({

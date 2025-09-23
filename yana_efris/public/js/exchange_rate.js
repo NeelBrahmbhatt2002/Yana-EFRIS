@@ -8,9 +8,10 @@ function fetch_and_set_exchange_rate(frm) {
 			},
 			callback: function (r) {
 				if (!r.message) return;
-
+				console.log("Rate is", r);
 				if (r.message) {
 					let rate = parseFloat(r.message.rate) || null;
+					console.log("After float rate", rate);
 					if (rate) {
 						frm.set_value("conversion_rate", rate);
 						// optional: show success message

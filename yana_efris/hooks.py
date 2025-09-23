@@ -10,9 +10,11 @@ app_license = "mit"
 
 # required_apps = []
 
-# doctype_js = {
-#     "Quotation": "public/js/quotation.js",        # you can add more doctypes
-# }
+doctype_js = {
+    "Quotation": "public/js/quotation.js",        # you can add more doctypes
+    "Sales Order": "public/js/sales_order.js",
+    "Sales Invoice": "public/js/sales_invoice.js",
+}
 
 
 # Each item in the list will be shown as an app in the apps page
@@ -32,9 +34,9 @@ app_license = "mit"
 # include js, css files in header of desk.html
 # app_include_css = "/assets/yana_efris/css/yana_efris.css"
 # app_include_js = "/assets/yana_efris/js/yana_efris.js"
-app_include_js = [
-    "/assets/yana_efris/js/exchange_rate.js"
-]
+# app_include_js = [
+#     "/assets/yana_efris/js/exchange_rate.js"
+# ]
 
 
 # include js, css files in header of web template
@@ -186,6 +188,12 @@ app_include_js = [
 # override_whitelisted_methods = {
 # 	"frappe.desk.doctype.event.event.get_events": "yana_efris.event.get_events"
 # }
+
+# override_whitelisted_methods = {
+#     "erpnext.setup.utils.get_exchange_rate": "yana_efris.api.efris_api.get_exchange_rate"
+# }
+
+
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
