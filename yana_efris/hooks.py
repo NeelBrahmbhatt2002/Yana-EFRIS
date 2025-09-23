@@ -10,6 +10,11 @@ app_license = "mit"
 
 # required_apps = []
 
+# doctype_js = {
+#     "Quotation": "public/js/quotation.js",        # you can add more doctypes
+# }
+
+
 # Each item in the list will be shown as an app in the apps page
 # add_to_apps_screen = [
 # 	{
@@ -27,6 +32,10 @@ app_license = "mit"
 # include js, css files in header of desk.html
 # app_include_css = "/assets/yana_efris/css/yana_efris.css"
 # app_include_js = "/assets/yana_efris/js/yana_efris.js"
+app_include_js = [
+    "/assets/yana_efris/js/exchange_rate.js"
+]
+
 
 # include js, css files in header of web template
 # web_include_css = "/assets/yana_efris/css/yana_efris.css"
