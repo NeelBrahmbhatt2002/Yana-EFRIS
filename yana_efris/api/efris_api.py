@@ -35,7 +35,10 @@ def get_exchange_rate(currency=None, company_name=None):
 
         # 🌍 Step 2: If not found → call EFRIS
         interfaceCode = "T121"
-        content = {"currency": currency}
+        content = {
+            "currency": currency,
+            "issueDate": today(),
+        }
 
         success, response = make_post(
             interfaceCode=interfaceCode,
@@ -61,7 +64,9 @@ def get_exchange_rate(currency=None, company_name=None):
         exchange.insert(ignore_permissions=True, ignore_mandatory=True)
         frappe.db.commit()
 
-        return {"currency": currency, "rate": rate}
+
+        # return {"currency": currency, "rate": rate}
+        return response
 
     except Exception as e:
         frappe.log_error(f"EFRIS exchange rate error: {e}", "yana_efris.get_exchange_rate")

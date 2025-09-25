@@ -29,13 +29,12 @@ frappe.ui.form.on("Quotation", {
 					company_name: frm.doc.company,
 				},
 				callback: function (r) {
-					console.log("Response is", r);
+					// console.log("Response is", r);
 					if (!r.message) return;
 
 					if (r.message) {
 						let rate = parseFloat(r.message.rate) || null;
 						if (rate) {
-							console.log("Rate ====", rate);
 							frm.set_value("conversion_rate", rate);
 
 							rate !== 1 && frappe.msgprint(`Exchange Rate from EFRIS: ${rate}`);
