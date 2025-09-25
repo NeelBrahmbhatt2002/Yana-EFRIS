@@ -14,8 +14,13 @@ doctype_js = {
     "Quotation": "public/js/quotation.js",        # you can add more doctypes
     "Sales Order": "public/js/sales_order.js",
     "Sales Invoice": "public/js/sales_invoice.js",
+    "Purchase Order": "public/js/purchase_order.js",
+    "Purchase Invoice": "public/js/purchase_invoice.js"
 }
 
+app_include_js = [
+    "/assets/yana_efris/js/exchange_rate_common.js"
+]
 
 # Each item in the list will be shown as an app in the apps page
 # add_to_apps_screen = [
@@ -185,14 +190,10 @@ doctype_js = {
 # Overriding Methods
 # ------------------------------
 #
-# override_whitelisted_methods = {
-# 	"frappe.desk.doctype.event.event.get_events": "yana_efris.event.get_events"
-# }
 
 # override_whitelisted_methods = {
 #     "erpnext.setup.utils.get_exchange_rate": "yana_efris.api.efris_api.get_exchange_rate"
 # }
-
 
 #
 # each overriding function accepts a `data` argument;

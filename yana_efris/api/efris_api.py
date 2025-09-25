@@ -48,6 +48,7 @@ def get_exchange_rate(currency=None, company_name=None):
 
         if not success:
             frappe.log_error(response, "EFRIS Exchange Rate Fetch Failed")
+            frappe.throw(response)
 
         rate = float(response.get("rate") or 0)
         if not rate:
