@@ -19,7 +19,7 @@ doctype_js = {
 }
 
 app_include_js = [
-    "/assets/yana_efris/js/exchange_rate_common.js"
+    "/assets/yana_efris/js/exchange_rate_common.js",
 ]
 
 # Each item in the list will be shown as an app in the apps page

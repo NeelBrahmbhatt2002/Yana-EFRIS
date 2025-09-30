@@ -37,7 +37,6 @@ def get_exchange_rate(currency=None, company_name=None):
         interfaceCode = "T121"
         content = {
             "currency": currency,
-            "issueDate": today(),
         }
 
         success, response = make_post(

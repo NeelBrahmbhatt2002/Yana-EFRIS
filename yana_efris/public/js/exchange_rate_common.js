@@ -1,6 +1,4 @@
 // exchange_rate_common.js
-
-// exchange_rate_common.js
 window.fetch_and_set_exchange_rate_common = function (frm) {
 	if (frm.doc.currency && frm.doc.company) {
 		frappe.call({
