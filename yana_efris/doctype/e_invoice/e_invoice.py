@@ -1,4 +1,5 @@
 import frappe
+from frappe import _
 from frappe.utils import now_datetime
 from uganda_compliance.efris.utils.utils import efris_log_info, efris_log_error
 
@@ -83,7 +84,6 @@ def get_seller_details_json(self, sales_invoice):
     except Exception as e:
         frappe.log_error(f"Error getting seller details JSON: {e}", "E Invoice - get_seller_details_json")
         raise
-
 
 def yana_before_submit(self):
     """Custom override for Uganda Compliance E-Invoice before_submit()"""
