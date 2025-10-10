@@ -14,4 +14,4 @@ e_invoice.EInvoiceAPI.generate_irn = efris_api.generate_irn
 EInvoice.get_einvoice_json = yana_einvoice.get_einvoice_json
 EInvoice.get_seller_details_json = yana_einvoice.get_seller_details_json
 # Override before_submit of EInvoice
-EInvoice.before_submit = yana_einvoice.yana_before_submit
+# EInvoice.before_submit = yana_einvoice.yana_before_submit

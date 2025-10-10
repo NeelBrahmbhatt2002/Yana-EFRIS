@@ -85,39 +85,39 @@ def get_seller_details_json(self, sales_invoice):
         frappe.log_error(f"Error getting seller details JSON: {e}", "E Invoice - get_seller_details_json")
         raise
 
-def yana_before_submit(self):
-    """Custom override for Uganda Compliance E-Invoice before_submit()"""
-    efris_log_info(f"[YANA] Running before_submit for E-Invoice {self.name}")
+# def yana_before_submit(self):
+#     """Custom override for Uganda Compliance E-Invoice before_submit()"""
+#     efris_log_info(f"[YANA] Running before_submit for E-Invoice {self.name}")
 
-    try:
-        # Fetch related Sales Invoice (the one linked to this E-Invoice)
-        sales_invoice = frappe.get_doc('Sales Invoice', self.name)
+#     try:
+#         # Fetch related Sales Invoice (the one linked to this E-Invoice)
+#         sales_invoice = frappe.get_doc('Sales Invoice', self.name)
 
-        # Handle Credit Note (Return) correctly
-        if sales_invoice.is_return and sales_invoice.return_against:
-            efris_log_info(f"[YANA] Detected Credit Note. Return Against: {sales_invoice.return_against}")
-            original_invoice = frappe.get_doc('Sales Invoice', sales_invoice.return_against)
-            original_e_invoice = frappe.get_doc('E Invoice',sales_invoice.return_against)
-        else:
-            efris_log_info("[YANA] Normal Sales Invoice detected.")
-            original_invoice = sales_invoice
+#         # Handle Credit Note (Return) correctly
+#         if sales_invoice.is_return and sales_invoice.return_against:
+#             efris_log_info(f"[YANA] Detected Credit Note. Return Against: {sales_invoice.return_against}")
+#             original_invoice = frappe.get_doc('Sales Invoice', sales_invoice.return_against)
+#             original_e_invoice = frappe.get_doc('E Invoice',sales_invoice.return_against)
+#         else:
+#             efris_log_info("[YANA] Normal Sales Invoice detected.")
+#             original_invoice = sales_invoice
 
-        # Log IRN/FDN info
-        efris_log_info(f"[YANA] Original Invoice: {original_invoice.name}, IRN: {original_invoice.efris_irn}")
+#         # Log IRN/FDN info
+#         efris_log_info(f"[YANA] Original Invoice: {original_invoice.name}, IRN: {original_invoice.efris_irn}")
 
-        # ✅ Pull IRN/FDN from the original invoice
-        fdn = original_invoice.efris_irn
-        if fdn:
-            self.irn = fdn
-            self.original_fdn = original_invoice.efris_irn
-            self.invoice_id = original_e_invoice.invoice_id
-            self.antifake_code = original_e_invoice.antifake_code
-        else:
-            msg = _("Cannot submit e-invoice without EFRIS.") + " "
-            msg += _("You must generate EFRIS for the sales invoice to submit this e-invoice.")
-            efris_log_error(f"[YANA] Missing IRN for original invoice: {original_invoice.name}")
-            frappe.throw(msg, title=_("Missing EFRIS"))
+#         # ✅ Pull IRN/FDN from the original invoice
+#         fdn = original_invoice.efris_irn
+#         if fdn:
+#             self.irn = fdn
+#             self.original_fdn = original_invoice.efris_irn
+#             self.invoice_id = original_e_invoice.invoice_id
+#             self.antifake_code = original_e_invoice.antifake_code
+#         else:
+#             msg = _("Cannot submit e-invoice without EFRIS.") + " "
+#             msg += _("You must generate EFRIS for the sales invoice to submit this e-invoice.")
+#             efris_log_error(f"[YANA] Missing IRN for original invoice: {original_invoice.name}")
+#             frappe.throw(msg, title=_("Missing EFRIS"))
 
-    except Exception as e:
-        efris_log_error(f"[YANA] Exception in before_submit: {str(e)}")
-        frappe.throw(f"Error in YANA before_submit: {e}")
+#     except Exception as e:
+#         efris_log_error(f"[YANA] Exception in before_submit: {str(e)}")
+#         frappe.throw(f"Error in YANA before_submit: {e}")
