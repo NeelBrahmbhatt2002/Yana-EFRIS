@@ -15,6 +15,3 @@ EInvoice.get_einvoice_json = yana_einvoice.get_einvoice_json
 EInvoice.get_seller_details_json = yana_einvoice.get_seller_details_json
 # Override before_submit of EInvoice
 EInvoice.before_submit = yana_einvoice.yana_before_submit
-
-
-efris_log_info("[YANA EFRIS] Applied overrides for EInvoiceAPI and EInvoice methods")
