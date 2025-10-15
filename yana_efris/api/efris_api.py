@@ -197,3 +197,68 @@ def generate_irn(sales_invoice):
         frappe.throw(response, title=_('EFRIS Generation Failed'))
 
     return status, response
+
+@frappe.whitelist()
+def query_customer_details(doc, e_company_name, tax_id, ninBrn):
+    # 1️⃣ Call EFRIS API
+    query_customer_details_T119 = {
+        "tin": tax_id,
+        "ninBrn": ninBrn
+    }
+
+    success, response = make_post(
+        interfaceCode="T119",
+        content=query_customer_details_T119,
+        company_name=e_company_name,
+    )
+
+    if not success:
+        frappe.throw(f"Failed to fetch customer details from EFRIS. Response: {response}")
+
+    # 2️⃣ Extract taxpayer info
+    taxpayer = response.get("taxpayer")
+    if not taxpayer:
+        frappe.throw("EFRIS did not return taxpayer information.")
+
+    # 3️⃣ Choose customer name
+    customer_name = taxpayer.get("legalName") or taxpayer.get("businessName")
+    if not customer_name:
+        frappe.throw("No valid legal/business name found in EFRIS response.")
+
+    # 4️⃣ Optional: double-check if already exists by tax_id
+    existing = frappe.db.get_value("Customer", {"tax_id": taxpayer.get("tin")}, "name")
+    if existing:
+        return {
+            "customer_name": existing,
+            "message": "Existing customer returned."
+        }
+
+    # 5️⃣ Create new Customer
+    customer = frappe.new_doc("Customer")
+    customer.customer_name = customer_name
+    customer.customer_type = "Company"
+    customer.efris_customer_type = "B2B"  # ✅ Custom field (make sure it exists)
+
+    # 6️⃣ Map optional fields
+    if taxpayer.get("tin"):
+        customer.tax_id = taxpayer.get("tin")
+
+    if taxpayer.get("address"):
+        # NOTE: Customer doctype normally doesn't have primary_address field by default.
+        # If you created a custom field, it's fine.
+        customer.primary_address = taxpayer.get("address")
+
+    customer.insert(ignore_permissions=True)   # <--- NO contact created here (email/mobile empty)
+    frappe.db.commit()
+
+    if taxpayer.get("contactEmail"):
+        customer.db_set("email_id", taxpayer.get("contactEmail"))
+
+    if taxpayer.get("contactNumber"):
+        customer.db_set("mobile_no", taxpayer.get("contactNumber"))
+
+    # 7️⃣ Save
+    # customer.save()
+    # frappe.db.commit()
+
+    return response

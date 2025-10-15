@@ -97,4 +97,59 @@ frappe.ui.form.on("Sales Invoice", {
 	currency(frm) {
 		fetch_and_set_exchange_rate_common(frm);
 	},
+
+	custom_new_customer_tin: function (frm) {
+		const tin = frm.doc.custom_new_customer_tin;
+
+		// Basic validation: 10 digits
+		if (!tin || tin.length !== 10 || !/^\d{10}$/.test(tin)) {
+			return;
+		}
+
+		if (!frm.doc.custom_is_new_customer) {
+			frappe.db.get_value("Customer", { tax_id: tin }, "name").then((r) => {
+				if (r && r.message && r.message.name) {
+					frm.set_value("customer", r.message.name);
+				}
+			});
+			return;
+		}
+		frappe.db.get_value("Customer", { tax_id: tin }, "name").then((r) => {
+			if (r?.message?.name) {
+				frm.set_value("customer", r.message.name);
+				frappe.msgprint("Customer already exists!");
+				return; // ❌ This only stops THEN, so we need return outside
+			} else {
+				// ✅ Safe to call API here (only when customer doesn’t exist)
+				const e_company_name = frm.doc.company;
+				const ninBrn = "";
+
+				frappe.call({
+					method: "yana_efris.api.efris_api.query_customer_details",
+					args: {
+						doc: frm.doc.name, // ✅ doc_name instead of doc
+						e_company_name,
+						tax_id: tin,
+						ninBrn,
+					},
+					freeze: true,
+					freeze_message: __("Fetching customer details from EFRIS..."),
+					callback: function (r) {
+						if (r.message) {
+							frm.set_value("customer", r.message.taxpayer.legalName);
+							frappe.msgprint("Customer details fetched successfully!");
+						}
+					},
+					error: function (err) {
+						console.error("❌ API Error:", err);
+						frappe.msgprint("Failed to fetch customer details from EFRIS.");
+					},
+				});
+			}
+		});
+	},
+
+	custom_is_new_customer: function (frm) {
+		frm.set_value("custom_new_customer_tin", "");
+	},
 });
