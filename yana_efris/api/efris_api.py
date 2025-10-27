@@ -5,6 +5,12 @@ from uganda_compliance.efris.api_classes.e_invoice import EInvoiceAPI
 from uganda_compliance.efris.api_classes.efris_api import make_post
 from uganda_compliance.efris.utils.utils import efris_log_info, efris_log_error
 
+import json, base64, gzip
+from Crypto.Cipher import AES
+import frappe
+from uganda_compliance.efris.doctype.e_invoice_request_log.e_invoice_request_log import log_request_to_efris
+
+
 @frappe.whitelist()
 def get_exchange_rate(currency=None, company_name=None):
     """
@@ -198,8 +204,55 @@ def generate_irn(sales_invoice):
 
     return status, response
 
+@staticmethod
+def decrypt_aes_ecb(aeskey, ciphertext):
+
+    try:
+        # Step 1: Base64 decode
+        raw = base64.b64decode(ciphertext)
+
+        data = raw
+
+        # Step 2: If starts with gzip header, decompress
+        if data.startswith(b'\x1f\x8b'):
+            try:
+                data = gzip.decompress(data)
+            except Exception as e:
+                frappe.log_error(f"❌ GZIP1 failed: {e}", "DEBUG")
+                return None
+
+        # Step 3: Try to parse JSON directly
+        try:
+            text = data.decode("utf-8")
+            json.loads(text)  # validate
+            return text
+        except:
+            frappe.log_error("ℹ Not valid JSON yet. Trying AES decrypt...", "DEBUG")
+
+        # Step 4: AES decrypt (ECB, PKCS7)
+        cipher = AES.new(aeskey, AES.MODE_ECB)
+        decrypted = cipher.decrypt(data)
+
+        padding_length = decrypted[-1]
+        decrypted = decrypted[:-padding_length]
+
+        # Step 5: If result is gzip again, decompress
+        if decrypted.startswith(b'\x1f\x8b'):
+            try:
+                decrypted = gzip.decompress(decrypted)
+            except Exception as e:
+                frappe.log_error(f"❌ GZIP2 failed: {e}", "DEBUG")
+
+        # Step 6: Now decode text
+        final_text = decrypted.decode("utf-8")
+        return final_text
+
+    except Exception as e:
+        frappe.log_error(f"❌ FINAL decrypt error: {e}", "DEBUG")
+        raise
+
 @frappe.whitelist()
-def query_customer_details(doc, e_company_name, tax_id, ninBrn):
+def query_customer_details(doc, e_company_name, tax_id, ninBrn,accountManager):
     # 1️⃣ Call EFRIS API
     query_customer_details_T119 = {
         "tin": tax_id,
@@ -238,6 +291,8 @@ def query_customer_details(doc, e_company_name, tax_id, ninBrn):
     customer.customer_name = customer_name
     customer.customer_type = "Company"
     customer.efris_customer_type = "B2B"  # ✅ Custom field (make sure it exists)
+    customer.account_manager = accountManager
+    customer.customer_group = "Commercial"
 
     # 6️⃣ Map optional fields
     if taxpayer.get("tin"):
@@ -261,4 +316,28 @@ def query_customer_details(doc, e_company_name, tax_id, ninBrn):
     # customer.save()
     # frappe.db.commit()
 
+    return {
+        "customer_id": customer.name,
+        "customer_name": customer.customer_name,
+        "message": "New customer created successfully.",
+        "taxpayer": taxpayer,
+    }
+
+
+@frappe.whitelist()
+def fetch_items_from_efris(pageNo,pageSize,company_name):
+    fetch_items_T127 = {
+        "pageNo": pageNo,
+        "pageSize": pageSize,
+    }
+
+    success, response = make_post(
+        interfaceCode="T127",
+        content=fetch_items_T127,
+        company_name=company_name,
+    )
+
+    if not success:
+        frappe.throw("Failed to fetch items from EFRIS (T127). Check logs and credentials.")
+    
     return response

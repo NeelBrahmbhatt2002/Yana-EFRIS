@@ -118,31 +118,50 @@ frappe.ui.form.on("Sales Invoice", {
 			if (r?.message?.name) {
 				frm.set_value("customer", r.message.name);
 				frappe.msgprint("Customer already exists!");
-				return; // ❌ This only stops THEN, so we need return outside
+				return;
 			} else {
 				// ✅ Safe to call API here (only when customer doesn’t exist)
 				const e_company_name = frm.doc.company;
 				const ninBrn = "";
 
+				// Fetch Current User email
+				var Current_User = frappe.session.user;
+				var user_email = "";
 				frappe.call({
-					method: "yana_efris.api.efris_api.query_customer_details",
+					method: "frappe.client.get",
 					args: {
-						doc: frm.doc.name, // ✅ doc_name instead of doc
-						e_company_name,
-						tax_id: tin,
-						ninBrn,
+						doctype: "User",
+						filters: { email: Current_User },
 					},
-					freeze: true,
-					freeze_message: __("Fetching customer details from EFRIS..."),
 					callback: function (r) {
-						if (r.message) {
-							frm.set_value("customer", r.message.taxpayer.legalName);
-							frappe.msgprint("Customer details fetched successfully!");
+						user_email = r?.message?.name || "";
+						// Fetch Customer Details From EFRIS
+						if (user_email) {
+							frappe.call({
+								method: "yana_efris.api.efris_api.query_customer_details",
+								args: {
+									doc: frm.doc.name, // ✅ doc_name instead of doc
+									e_company_name,
+									tax_id: tin,
+									ninBrn,
+									accountManager: user_email,
+								},
+								freeze: true,
+								freeze_message: __("Fetching customer details from EFRIS..."),
+								callback: function (r) {
+									if (r.message) {
+										frm.set_value("customer", r.message.customer_id);
+										frappe.msgprint("Customer details fetched successfully!");
+									}
+								},
+								error: function (err) {
+									console.error("❌ API Error:", err);
+									frappe.msgprint(
+										"Failed to fetch customer details from EFRIS."
+									);
+								},
+							});
 						}
-					},
-					error: function (err) {
-						console.error("❌ API Error:", err);
-						frappe.msgprint("Failed to fetch customer details from EFRIS.");
 					},
 				});
 			}

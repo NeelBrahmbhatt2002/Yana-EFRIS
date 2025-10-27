@@ -22,6 +22,27 @@ app_include_js = [
     "/assets/yana_efris/js/exchange_rate_common.js",
 ]
 
+# doctype_list_js = {
+#     "Item": "public/js/item_list.js"
+# }
+
+# fixtures = [
+#     {
+#         "doctype": "EFRIS Sync Progress"
+#     }
+# ]
+
+# # yana_efris/hooks.py
+
+# override_whitelisted_methods = {
+#     "clefincode_chat.api.api_1_2_1.api.get_contacts": "yana_efris.overrides.chat_contacts.get_contacts",
+#     "clefincode_chat.api.api_1_2_1.api.get_contacts_for_new_group": "yana_efris.overrides.chat_contacts.get_contacts_for_new_group",
+#     # "uganda_compliance.efris.api_classes.e_invoice.generate_irn": "yana_efris.api.efris_api.generate_irn"
+# }
+
+
+
+
 # Each item in the list will be shown as an app in the apps page
 # add_to_apps_screen = [
 # 	{
