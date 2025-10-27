@@ -252,7 +252,7 @@ def decrypt_aes_ecb(aeskey, ciphertext):
         raise
 
 @frappe.whitelist()
-def query_customer_details(doc, e_company_name, tax_id, ninBrn):
+def query_customer_details(doc, e_company_name, tax_id, ninBrn,accountManager):
     # 1️⃣ Call EFRIS API
     query_customer_details_T119 = {
         "tin": tax_id,
@@ -291,6 +291,8 @@ def query_customer_details(doc, e_company_name, tax_id, ninBrn):
     customer.customer_name = customer_name
     customer.customer_type = "Company"
     customer.efris_customer_type = "B2B"  # ✅ Custom field (make sure it exists)
+    customer.account_manager = accountManager
+    customer.customer_group = "Commercial"
 
     # 6️⃣ Map optional fields
     if taxpayer.get("tin"):
@@ -314,7 +316,12 @@ def query_customer_details(doc, e_company_name, tax_id, ninBrn):
     # customer.save()
     # frappe.db.commit()
 
-    return response
+    return {
+        "customer_id": customer.name,
+        "customer_name": customer.customer_name,
+        "message": "New customer created successfully.",
+        "taxpayer": taxpayer,
+    }
 
 
 @frappe.whitelist()
