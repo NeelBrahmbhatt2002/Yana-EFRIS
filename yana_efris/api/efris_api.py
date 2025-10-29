@@ -186,6 +186,9 @@ def generate_irn(sales_invoice):
         efris_log_info("Built einvoice_json (sellerDetails logging failed)")
 
     company_name = sales_invoice.company
+    efris_log_info(f"[YANA DEBUG] taxDetails JSON: {frappe.as_json(einvoice_json.get('taxDetails'))}")
+    efris_log_info(f"[YANA DEBUG] goodsDetails JSON: {frappe.as_json(einvoice_json.get('goodsDetails'))}")
+
     status, response = make_post(
         interfaceCode="T109",
         content=einvoice_json,

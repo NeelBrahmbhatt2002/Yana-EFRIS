@@ -89,6 +89,68 @@ def get_seller_details_json(self, sales_invoice):
         frappe.log_error(f"Error getting seller details JSON: {e}", "E Invoice - get_seller_details_json")
         raise
 
+def get_tax_details(self):
+    efris_log_info("[YANA EFRIS ✅] get_tax_details() called")
+    tax_details_list = []
+
+    # Get category-wise tax totals (already Decimal-safe from your override)
+    tax_per_category = calculate_tax_by_category(self.invoice)
+    trimmed_response = {}
+
+    for key, value in tax_per_category.items():
+        # Extract numeric part inside parentheses, e.g., "VAT (18%)" → "18"
+        try:
+            tax_category = key.split('(')[1].split(')')[0]
+            tax_category = tax_category.replace('%', '')
+            trimmed_response[tax_category] = Decimal(str(value))
+        except Exception:
+            continue
+
+    for row in self.taxes:
+        try:
+            tax_rate_key = '0'
+            if str(row.tax_rate) == '0.18':
+                tax_rate = Decimal(str(row.tax_rate))
+                tax_rate_key = str(int(tax_rate * 100))  # "18"
+            else:
+                tax_rate_key = str(row.tax_rate)
+
+            tax_category = (row.tax_category_code or '').split(':')[0]
+
+            # ✅ Default to zero if not found in trimmed_response
+            calculated_tax = trimmed_response.get(tax_rate_key, Decimal('0.00'))
+
+            # ✅ Use consistent rounding
+            calculated_tax = calculated_tax.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            net_amount = Decimal(str(row.net_amount or 0)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            gross_amount = (net_amount + calculated_tax).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+            # ✅ Optional: safety correction if mismatch between additional discounts
+            additional_disc_total = Decimal(str(calculate_additional_discounts(self.invoice) or 0)).quantize(Decimal('0.01'))
+            if calculated_tax > 0 and calculated_tax != additional_disc_total:
+                calculated_tax = additional_disc_total
+                gross_amount = (net_amount + calculated_tax).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+            tax_details = {
+                "taxCategoryCode": tax_category,
+                "netAmount": str(net_amount),
+                "taxRate": str(row.tax_rate),
+                "taxAmount": str(calculated_tax),
+                "grossAmount": str(gross_amount),
+                "exciseUnit": "",
+                "exciseCurrency": "",
+                "taxRateName": ""
+            }
+
+            tax_details_list.append(tax_details)
+
+        except Exception as e:
+            efris_log_info(f"[YANA TAX ERROR] get_tax_details failed for {row.name}: {e}")
+            continue
+
+    return {"taxDetails": tax_details_list}
+
+
 def calculate_tax_by_category(invoice):
     """
     Calculate total tax per tax category for Sales Invoice items.
