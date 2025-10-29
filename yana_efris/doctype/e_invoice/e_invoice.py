@@ -1,7 +1,11 @@
 import frappe
 from frappe import _
+import json
+from collections import defaultdict
+from decimal import Decimal, ROUND_HALF_UP
 from frappe.utils import now_datetime
 from uganda_compliance.efris.utils.utils import efris_log_info, efris_log_error
+from uganda_compliance.efris.doctype.e_invoice.e_invoice import _get_valid_document
 
 def get_einvoice_json(self, sales_invoice):
     """
@@ -90,35 +94,41 @@ def calculate_tax_by_category(invoice):
     Calculate total tax per tax category for Sales Invoice items.
     Ensures that TaxDetails total matches GoodsDetails tax sum exactly.
     """
-    efris_log_info(f"[YANA EFRIS] calculate_tac_by_category() called")
+    efris_log_info("[YANA EFRIS ✅] calculate_tax_by_category() called")
+
     doc = _get_valid_document(invoice)
 
     if not doc.taxes:
         return
 
     item_taxes = json.loads(doc.taxes[0].item_wise_tax_detail)
-    tax_category_totals = defaultdict(float)
+    tax_category_totals = defaultdict(Decimal)
 
     for row in doc.get('items', []):
         item_code = row.get('item_code', '')
         item_tax_template = row.get('item_tax_template', '')
-
         if not item_tax_template:
             continue
 
-        tax_rate = float(item_taxes.get(item_code, [0, 0])[0]) or 0.0
+        tax_rate = Decimal(str(item_taxes.get(item_code, [0, 0])[0] or 0))
 
-        # ✅ Use the same tax amount as used in goodsDetails
-        item_tax = round(float(row.tax or 0), 2)
+        # ✅ Use consistent Decimal rounding instead of float
+        raw_item_tax = getattr(row, "efris_dsct_item_tax", None)
+        if raw_item_tax is None or raw_item_tax == 0:
+            # Fallback: recompute from amount and tax rate
+            raw_item_tax = Decimal(str(row.amount or 0)) * (tax_rate / (100 + tax_rate))
 
-        # If there’s an additional discount, add its tax portion
-        if doc.additional_discount_percentage > 0.0:
-            item_tax += float(row.efris_dsct_discount_tax or 0)
+        item_tax = raw_item_tax.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+        # If there’s an additional discount, add its tax portion (with rounding)
+        if getattr(doc, "additional_discount_percentage", 0) > 0:
+            discount_tax = Decimal(str(getattr(row, "efris_dsct_discount_tax", 0) or 0))
+            item_tax += discount_tax.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
         tax_category_totals[item_tax_template] += item_tax
 
-    return dict(tax_category_totals)
-
+    # ✅ Convert Decimal totals to float for downstream compatibility
+    return {k: float(v.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)) for k, v in tax_category_totals.items()}
 
 # def yana_before_submit(self):
 #     """Custom override for Uganda Compliance E-Invoice before_submit()"""
