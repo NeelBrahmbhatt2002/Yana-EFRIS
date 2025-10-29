@@ -85,6 +85,41 @@ def get_seller_details_json(self, sales_invoice):
         frappe.log_error(f"Error getting seller details JSON: {e}", "E Invoice - get_seller_details_json")
         raise
 
+def calculate_tax_by_category(invoice):
+    """
+    Calculate total tax per tax category for Sales Invoice items.
+    Ensures that TaxDetails total matches GoodsDetails tax sum exactly.
+    """
+    efris_log_info(f"[YANA EFRIS] calculate_tac_by_category() called")
+    doc = _get_valid_document(invoice)
+
+    if not doc.taxes:
+        return
+
+    item_taxes = json.loads(doc.taxes[0].item_wise_tax_detail)
+    tax_category_totals = defaultdict(float)
+
+    for row in doc.get('items', []):
+        item_code = row.get('item_code', '')
+        item_tax_template = row.get('item_tax_template', '')
+
+        if not item_tax_template:
+            continue
+
+        tax_rate = float(item_taxes.get(item_code, [0, 0])[0]) or 0.0
+
+        # ✅ Use the same tax amount as used in goodsDetails
+        item_tax = round(float(row.tax or 0), 2)
+
+        # If there’s an additional discount, add its tax portion
+        if doc.additional_discount_percentage > 0.0:
+            item_tax += float(row.efris_dsct_discount_tax or 0)
+
+        tax_category_totals[item_tax_template] += item_tax
+
+    return dict(tax_category_totals)
+
+
 # def yana_before_submit(self):
 #     """Custom override for Uganda Compliance E-Invoice before_submit()"""
 #     efris_log_info(f"[YANA] Running before_submit for E-Invoice {self.name}")

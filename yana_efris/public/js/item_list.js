@@ -15,6 +15,13 @@ frappe.listview_settings["Item"] = {
 				callback: function (r) {
 					if (r.message) {
 						console.log("Response successfull", r);
+						frappe.msgprint({
+							title: __("Items Fetched Successfully from EFRIS"),
+							indicator: "green",
+							message: __(
+								"Items sync in progress please reload after some seconds."
+							),
+						});
 					}
 				},
 			});
