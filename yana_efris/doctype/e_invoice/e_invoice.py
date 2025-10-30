@@ -6,6 +6,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from frappe.utils import now_datetime
 from uganda_compliance.efris.utils.utils import efris_log_info, efris_log_error
 from uganda_compliance.efris.doctype.e_invoice.e_invoice import _get_valid_document
+from uganda_compliance.efris.doctype.e_invoice.e_invoice import _calculate_taxes_and_discounts
 
 def get_einvoice_json(self, sales_invoice):
     """
@@ -89,82 +90,151 @@ def get_seller_details_json(self, sales_invoice):
         frappe.log_error(f"Error getting seller details JSON: {e}", "E Invoice - get_seller_details_json")
         raise
 
-def calculate_tax_by_category(invoice):
-    """
-    Robust calculation: derive per-item tax using the same sources get_good_details() uses,
-    accumulate with Decimal (no per-item rounding), then round once per category.
-    Returns a dict: { tax_template_name: Decimal('...') }
-    """
-    efris_log_info("[YANA EFRIS ✅] calculate_tax_by_category() called (robust)")
+# def get_tax_details(self):
+#     efris_log_info("Getting tax details JSON")
+#     tax_details_list = []
 
-    doc = _get_valid_document(invoice)
-    if not doc or not getattr(doc, "taxes", None):
-        return {}
+#     # Get category totals (prefer if calculate_tax_by_category returns Decimals)
+#     tax_per_category = calculate_tax_by_category(self.invoice) or {}
+#     trimmed_response = {}
 
-    # load item-wise tax details if present (may be used for rate lookup)
-    try:
-        item_taxes = json.loads(doc.taxes[0].item_wise_tax_detail)
-    except Exception:
-        item_taxes = {}
+#     # Normalize to Decimal (quantized to 2 dp) in trimmed_response
+#     for key, value in tax_per_category.items():
+#         try:
+#             tax_category = key.split('(')[1].split(')')[0]
+#             tax_category = tax_category.replace('%', '')
+#         except Exception:
+#             # fallback: use key as-is
+#             tax_category = str(key)
 
-    tax_category_totals = defaultdict(Decimal)
+#         # Defensive conversion: if value already Decimal keep it, else convert
+#         if isinstance(value, Decimal):
+#             dec_val = value.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+#         else:
+#             dec_val = Decimal(str(value or 0)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
-    for row in doc.get("items", []):
-        item_code = row.get("item_code", "")
-        item_tax_template = row.get("item_tax_template", "")
-        if not item_tax_template:
-            # skip items that don't map to a tax template
-            continue
+#         trimmed_response[tax_category] = dec_val
 
-        # Determine tax rate (as Decimal) for fallback calculation
-        try:
-            raw_rate = item_taxes.get(item_code, [0, 0])[0] or 0
-            tax_rate = Decimal(str(raw_rate))
-        except Exception:
-            tax_rate = Decimal('0')
+#     for row in self.taxes:
+#         # build tax_rate_key (keep same logic but avoid float)
+#         tax_rate_key = '0'
+#         if str(row.tax_rate) == '0.18':
+#             tax_rate_key = str(int(Decimal(str(row.tax_rate)) * Decimal('100')))
+#         else:
+#             tax_rate_key = str(row.tax_rate)
 
-        # 1) Prefer explicit efris_dsct_item_tax if present and non-zero
-        item_tax_val = getattr(row, "efris_dsct_item_tax", None)
-        if item_tax_val not in (None, 0, "0", "", Decimal('0')):
-            item_tax = Decimal(str(item_tax_val))
-        else:
-            # 2) Next prefer row.tax if present and non-zero
-            tax_field = getattr(row, "tax", None)
-            if tax_field not in (None, 0, "0", "", Decimal('0')):
-                item_tax = Decimal(str(tax_field))
-            else:
-                # 3) Fallback: recompute from amount using tax-inclusive formula:
-                #    tax = amount * (rate / (100 + rate))
-                amount = Decimal(str(getattr(row, "amount", 0) or 0))
-                if tax_rate == 0:
-                    item_tax = Decimal('0')
-                else:
-                    # compute using Decimal
-                    item_tax = (amount * (tax_rate / (Decimal('100') + tax_rate)))
+#         tax_category = (row.tax_category_code or '').split(':')[0]
 
-        # If there's additional discount tax for this row, include it (unrounded)
-        try:
-            if getattr(doc, "additional_discount_percentage", 0) and getattr(row, "efris_dsct_discount_tax", None):
-                item_tax += Decimal(str(getattr(row, "efris_dsct_discount_tax", 0) or 0))
-        except Exception:
-            # ignore if missing
-            pass
+#         # Default zero
+#         calculated_tax = Decimal('0.00')
 
-        # Accumulate raw (unrounded) tax per category
-        tax_category_totals[item_tax_template] += item_tax
+#         if tax_rate_key in trimmed_response:
+#             # trimmed_response contains Decimal quantized values
+#             calculated_tax = trimmed_response[tax_rate_key]
 
-        # Debugging help (optional — remove or comment out in prod)
-        efris_log_info(f"[YANA DEBUG ROW TAX] item_code={item_code}, template={item_tax_template}, "
-                       f"item_tax_raw={item_tax}")
+#         # Compare with additional discounts (force Decimal)
+#         add_disc = Decimal(str(calculate_additional_discounts(self.invoice) or 0)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
-    # Round once per category (EFRIS expects 2-decimal numbers)
-    final_totals = {}
-    for k, v in tax_category_totals.items():
-        rounded = v.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-        final_totals[k] = rounded  # keep Decimal to let get_tax_details handle stringifying
+#         if calculated_tax > Decimal('0.00') and calculated_tax != add_disc:
+#             calculated_tax = add_disc
 
-    efris_log_info(f"[YANA DEBUG CATEGORY TOTALS] { {k: str(v) for k,v in final_totals.items()} }")
-    return final_totals
+#         # Prepare net_amount and gross using Decimal arithmetic
+#         net_amount = Decimal(str(row.net_amount or 0)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+#         gross_amount = (net_amount + calculated_tax).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+#         tax_details = {
+#             "taxCategoryCode": tax_category,
+#             "netAmount": str(net_amount),
+#             "taxRate": str(row.tax_rate),
+#             "taxAmount": str(calculated_tax),
+#             "grossAmount": str(gross_amount),
+#             "exciseUnit": "",
+#             "exciseCurrency": "",
+#             "taxRateName": ""
+#         }
+#         tax_details_list.append(tax_details)
+
+#     return {"taxDetails": tax_details_list}
+
+
+# def calculate_tax_by_category(invoice):
+#     """
+#     Use same per-item tax numbers that goodsDetails uses so Section D == Section E.
+#     Returns: { tax_template_name: Decimal('...') } with values quantized to 2 decimals.
+#     """
+#     efris_log_info("[YANA EFRIS] calculate_tax_by_category() called (align-with-goods)")
+
+#     doc = _get_valid_document(invoice)
+#     if not doc or not getattr(doc, "taxes", None):
+#         return {}
+
+#     # load item-wise tax details if present (for rate fallback)
+#     try:
+#         item_taxes = json.loads(doc.taxes[0].item_wise_tax_detail)
+#     except Exception:
+#         item_taxes = {}
+
+#     tax_category_totals = defaultdict(Decimal)
+
+#     for row in doc.get("items", []):
+#         item_code = row.get("item_code", "")
+#         item_tax_template = row.get("item_tax_template", "")
+#         if not item_tax_template:
+#             continue
+
+#         # determine tax_rate fallback (Decimal)
+#         try:
+#             raw_rate = item_taxes.get(item_code, [0, 0])[0] or 0
+#             tax_rate = Decimal(str(raw_rate))
+#         except Exception:
+#             tax_rate = Decimal("0")
+
+#         # 1) Prefer explicit efris_dsct_item_tax (discount item tax)
+#         raw_item_tax_field = getattr(row, "efris_dsct_item_tax", None)
+#         if raw_item_tax_field not in (None, "", 0):
+#             item_tax = Decimal(str(raw_item_tax_field))
+#             source = "efris_dsct_item_tax"
+#         else:
+#             # 2) Prefer the stored row.tax (this is what goodsDetails uses)
+#             row_tax_field = getattr(row, "tax", None)
+#             if row_tax_field not in (None, "", 0):
+#                 item_tax = Decimal(str(row_tax_field))
+#                 source = "row.tax"
+#             else:
+#                 # 3) Fallback: recompute from amount using tax-inclusive formula
+#                 amount = Decimal(str(getattr(row, "amount", 0) or 0))
+#                 if tax_rate == 0:
+#                     item_tax = Decimal("0")
+#                 else:
+#                     item_tax = amount * (tax_rate / (Decimal("100") + tax_rate))
+#                 source = "computed"
+
+#         # include discount tax (if present)
+#         try:
+#             if getattr(doc, "additional_discount_percentage", 0):
+#                 discount_tax_val = getattr(row, "efris_dsct_discount_tax", None)
+#                 if discount_tax_val not in (None, "", 0):
+#                     item_tax += Decimal(str(discount_tax_val))
+#         except Exception:
+#             pass
+
+#         # Debug: compare goods row.tax and computed value (temporary)
+#         efris_log_info(
+#             f"[YANA COMPARE ROW] item={item_code}, template={item_tax_template}, "
+#             f"source={source}, item_tax_used={item_tax}, row.tax={getattr(row,'tax',None)}, "
+#             f"efris_dsct_item_tax={getattr(row,'efris_dsct_item_tax',None)}, "
+#             f"efris_dsct_discount_tax={getattr(row,'efris_dsct_discount_tax',None)}"
+#         )
+
+#         tax_category_totals[item_tax_template] += Decimal(item_tax)
+
+#     # Round once per category (single rounding)
+#     final_totals = {}
+#     for k, v in tax_category_totals.items():
+#         final_totals[k] = v.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+#     efris_log_info(f"[YANA CATEGORY TOTALS] { {k: str(v) for k,v in final_totals.items()} }")
+#     return final_totals
 
 
 # def yana_before_submit(self):
