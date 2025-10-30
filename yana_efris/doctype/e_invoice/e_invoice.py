@@ -7,6 +7,7 @@ from frappe.utils import now_datetime
 from uganda_compliance.efris.utils.utils import efris_log_info, efris_log_error
 from uganda_compliance.efris.doctype.e_invoice.e_invoice import _get_valid_document
 from uganda_compliance.efris.doctype.e_invoice.e_invoice import _calculate_taxes_and_discounts
+from uganda_compliance.efris.doctype.e_invoice.e_invoice import calculate_tax_by_category
 
 def get_einvoice_json(self, sales_invoice):
     """
@@ -90,71 +91,76 @@ def get_seller_details_json(self, sales_invoice):
         frappe.log_error(f"Error getting seller details JSON: {e}", "E Invoice - get_seller_details_json")
         raise
 
-# def get_tax_details(self):
-#     efris_log_info("Getting tax details JSON")
-#     tax_details_list = []
+def get_tax_details(self):
+    efris_log_info("Getting tax details JSON")
+    tax_details_list = []
 
-#     # Get category totals (prefer if calculate_tax_by_category returns Decimals)
-#     tax_per_category = calculate_tax_by_category(self.invoice) or {}
-#     trimmed_response = {}
+    # 1️⃣ Calculate tax per category
+    tax_per_category = calculate_tax_by_category(self.invoice)
+    trimmed_response = {}
+    for key, value in tax_per_category.items():
+        # Extract the part inside the parentheses
+        tax_category = key.split('(')[1].split(')')[0]
+        tax_category = tax_category.replace('%', '')
+        trimmed_response[tax_category] = value
 
-#     # Normalize to Decimal (quantized to 2 dp) in trimmed_response
-#     for key, value in tax_per_category.items():
-#         try:
-#             tax_category = key.split('(')[1].split(')')[0]
-#             tax_category = tax_category.replace('%', '')
-#         except Exception:
-#             # fallback: use key as-is
-#             tax_category = str(key)
+    for row in self.taxes:
+        tax_rate_key = '0'
+        if row.tax_rate == '0.18':
+            tax_rate = float(row.tax_rate)
+            tax_rate_key = str(int(tax_rate * 100))  # e.g. 18 for 18%
+        else:
+            tax_rate_key = row.tax_rate
 
-#         # Defensive conversion: if value already Decimal keep it, else convert
-#         if isinstance(value, Decimal):
-#             dec_val = value.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-#         else:
-#             dec_val = Decimal(str(value or 0)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        tax_category = row.tax_category_code.split(':')[0]
 
-#         trimmed_response[tax_category] = dec_val
+        # 2️⃣ Get calculated tax (from our earlier per-category map)
+        calculated_tax = 0.0
+        if tax_rate_key in trimmed_response:
+            raw_tax = trimmed_response[tax_rate_key]
+            calculated_tax = round(float(raw_tax), 2)
 
-#     for row in self.taxes:
-#         # build tax_rate_key (keep same logic but avoid float)
-#         tax_rate_key = '0'
-#         if str(row.tax_rate) == '0.18':
-#             tax_rate_key = str(int(Decimal(str(row.tax_rate)) * Decimal('100')))
-#         else:
-#             tax_rate_key = str(row.tax_rate)
+            # Debug before rounding adjustment
+            efris_log_info(f"[DEBUG] Raw calculated_tax for rate {tax_rate_key}%: {raw_tax} -> Rounded: {calculated_tax}")
 
-#         tax_category = (row.tax_category_code or '').split(':')[0]
+        # 3️⃣ Handle mismatches or override conditions
+        try:
+            expected_discount_tax = calculate_additional_discounts(self.invoice)
+            if calculated_tax > 0 and calculated_tax != expected_discount_tax:
+                efris_log_info(f"[DEBUG] Adjusting tax for rate {tax_rate_key}% from {calculated_tax} → {expected_discount_tax} (due to discount mismatch)")
+                calculated_tax = expected_discount_tax
+        except Exception as ex:
+            efris_log_info(f"[DEBUG] No discount adjustment applied: {ex}")
 
-#         # Default zero
-#         calculated_tax = Decimal('0.00')
+        # 4️⃣ Convert to float-safe fixed precision (for JSON safety)
+        calculated_tax = float(f"{calculated_tax:.2f}")
 
-#         if tax_rate_key in trimmed_response:
-#             # trimmed_response contains Decimal quantized values
-#             calculated_tax = trimmed_response[tax_rate_key]
+        # 5️⃣ Debug summary for final value
+        efris_log_info(f"[DEBUG] Final tax for {tax_category} @ {row.tax_rate}: {calculated_tax}")
 
-#         # Compare with additional discounts (force Decimal)
-#         add_disc = Decimal(str(calculate_additional_discounts(self.invoice) or 0)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        gross_amount = round(row.net_amount + calculated_tax, 2)
 
-#         if calculated_tax > Decimal('0.00') and calculated_tax != add_disc:
-#             calculated_tax = add_disc
+        efris_log_info(f"[DEBUG] Gross = Net({row.net_amount}) + Tax({calculated_tax}) = {gross_amount}")
 
-#         # Prepare net_amount and gross using Decimal arithmetic
-#         net_amount = Decimal(str(row.net_amount or 0)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-#         gross_amount = (net_amount + calculated_tax).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        # 6️⃣ Append finalized object
+        tax_details = {
+            "taxCategoryCode": tax_category,
+            "netAmount": f"{row.net_amount:.2f}",
+            "taxRate": str(row.tax_rate),
+            "taxAmount": f"{calculated_tax:.2f}",
+            "grossAmount": f"{gross_amount:.2f}",
+            "exciseUnit": "",
+            "exciseCurrency": "",
+            "taxRateName": ""
+        }
 
-#         tax_details = {
-#             "taxCategoryCode": tax_category,
-#             "netAmount": str(net_amount),
-#             "taxRate": str(row.tax_rate),
-#             "taxAmount": str(calculated_tax),
-#             "grossAmount": str(gross_amount),
-#             "exciseUnit": "",
-#             "exciseCurrency": "",
-#             "taxRateName": ""
-#         }
-#         tax_details_list.append(tax_details)
+        tax_details_list.append(tax_details)
 
-#     return {"taxDetails": tax_details_list}
+    # 7️⃣ Log final taxDetails summary for cross-check
+    total_tax = sum(float(td["taxAmount"]) for td in tax_details_list)
+    efris_log_info(f"[DEBUG] ✅ Total Tax from taxDetails = {total_tax:.2f}")
+
+    return {"taxDetails": tax_details_list}
 
 
 # def calculate_tax_by_category(invoice):
