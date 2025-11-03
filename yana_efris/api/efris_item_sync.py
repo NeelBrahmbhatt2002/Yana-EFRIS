@@ -115,6 +115,11 @@ def sync_efris_items(company_name: str):
         # If nothing returned, we are likely past end
         if not records:
             frappe.log_error("No records returned; likely end reached.", "EFRIS SYNC")
+            frappe.msgprint({
+                "title": __("EFRIS Sync Complete"),
+                "indicator": "green",
+                "message": __(f"✅ All EFRIS items have been synced successfully for {company_name}.")
+            })
             # Mark as complete: set to next page, offset 0
             update_progress(progress, page_no + 1, 0)
             break
@@ -222,15 +227,66 @@ def create_simple_item(rec,company_name):
     item.item_code = code
     item.item_name = name
     item.description = name
-    item.stock_uom = "Nos"     # keep simple as requested
     item.item_group = "Products"
-    item.is_stock_item = 0     # keep non-stock for now; adjust later if needed
+    item.is_stock_item = 1     # keep non-stock for now; adjust later if needed
+    item.efris_item = 1
+    item.efris_e_company = company_name
 
     frappe.log_error(f"Company Found={company_name}")
+    stock_unit = frappe.utils.flt(rec.get("stock") or 0)
+    selling_rate = frappe.utils.flt(rec.get("unitPrice") or 0)
+
+    # item.opening_stock = stock_unit
+    item.standard_rate = selling_rate
+
+     # 2️⃣ Detect Stock UOM using EFRIS UOM Code
+    measure_unit = (rec.get("measureUnit") or "").strip()
+    uom_name = None
+
+    if measure_unit:
+        uom_name = frappe.db.get_value("UOM", {"efris_uom_code": measure_unit}, "name")
+
+    if not uom_name:
+        uom_name = "Nos"  # fallback if EFRIS UOM code not found
+
+    item.stock_uom = uom_name
+
+    # 3️⃣ Handle Commodity Code
+    commodity_code = (rec.get("commodityCategoryCode") or "").strip()
+    commodity_name = (rec.get("commodityCategoryName") or "").strip()
+
+    e_tax_category = None
+    tax_rate = str(rec.get("taxRate") or "").strip()
+
+    # Determine E Tax Category from taxRate
+    if tax_rate in ["0.18", "18", "18.0"]:
+        e_tax_category = "01:A: Standard (18%)"
+    elif tax_rate in ["0.0", "0", ""]:
+        e_tax_category = "02:B: Zero (0%)"
+    else:
+        e_tax_category = "03:C: Exempt (-)"  # fallback
+    
+    if commodity_code:
+        existing_commodity = frappe.db.get_value(
+            "EFRIS Commodity Code",
+            {"commodity_code": commodity_code},
+            "name"
+        )
+
+        if not existing_commodity:
+            commodity_doc = frappe.new_doc("EFRIS Commodity Code")
+            commodity_doc.commodity_code = commodity_code
+            commodity_doc.commodity_name = commodity_name
+            commodity_doc.e_tax_category = e_tax_category
+            commodity_doc.insert(ignore_permissions=True)
+            frappe.db.commit()
+
+            item.efris_commodity_code = commodity_doc.name
+        else:
+            item.efris_commodity_code = existing_commodity
 
     if company_name:
         template = get_tax_template_for_company(company_name, rec)
-        frappe.log_error(f"Template Returned: {template}")
         if template:
             # Add a row to the child table `taxes`
             item.append("taxes", {
@@ -240,7 +296,62 @@ def create_simple_item(rec,company_name):
     try:
         item.insert(ignore_permissions=True)
         # frappe.log_error(f"INSERTED: {code}", "DEBUG-SYNC")
+        # 5️⃣ Handle opening stock via Stock Reconciliation
+        if stock_unit > 0:
+            create_stock_reconciliation_for_item(item.name, stock_unit, selling_rate, company_name)
+
         return True
     except Exception as e:
         frappe.log_error(f"INSERT FAILED: {code} | {e}", "DEBUG-SYNC")
         return False
+
+def create_stock_reconciliation_for_item(item_code, qty, rate, company_name):
+    """Creates a Stock Reconciliation document for a single item."""
+    try:
+        # 1️⃣ Get company abbreviation
+        company_abbr = frappe.db.get_value("Company", company_name, "abbr")
+        if not company_abbr:
+            frappe.log_error(f"Company abbreviation not found for {company_name}", "EFRIS STOCK SYNC")
+            return
+
+        # 2️⃣ Construct expected warehouse name: "Stores - ABBR"
+        expected_warehouse_name = f"Stores - {company_abbr}"
+
+        # 3️⃣ Verify warehouse exists
+        warehouse = frappe.db.get_value("Warehouse", {"warehouse_name": f"Stores", "company": company_name}, "name")
+        if not warehouse:
+            # fallback to direct name match
+            warehouse = frappe.db.get_value("Warehouse", {"name": expected_warehouse_name}, "name")
+
+        if not warehouse:
+            frappe.log_error(
+                f"Warehouse '{expected_warehouse_name}' not found for {company_name}",
+                "EFRIS STOCK SYNC"
+            )
+            return
+
+        # 4️⃣ Create Stock Reconciliation
+        stock_recon = frappe.new_doc("Stock Reconciliation")
+        stock_recon.company = company_name
+        stock_recon.posting_date = now_datetime()
+        stock_recon.set_posting_time = 1
+        stock_recon.purpose = "Stock Reconciliation"
+        stock_recon.custom_stock_movement_description = f"Auto-created from EFRIS Item Sync for {item_code}"
+
+        stock_recon.append("items", {
+            "item_code": item_code,
+            "warehouse": warehouse,
+            "qty": qty,
+            "valuation_rate": rate,
+        })
+
+        stock_recon.insert(ignore_permissions=True)
+        stock_recon.submit()
+
+        frappe.log_error(
+            f"Stock Reconciliation created for item {item_code} (qty={qty}, rate={rate}, warehouse={warehouse})",
+            "EFRIS STOCK SYNC"
+        )
+
+    except Exception as e:
+        frappe.log_error(f"Stock Reconciliation failed for {item_code}: {e}", "EFRIS STOCK SYNC ERROR")

@@ -22,17 +22,17 @@ app_include_js = [
     "/assets/yana_efris/js/exchange_rate_common.js",
 ]
 
-# doctype_list_js = {
-#     "Item": "public/js/item_list.js"
-# }
+doctype_list_js = {
+    "Item": "public/js/item_list.js"
+}
 
-# fixtures = [
-#     {
-#         "doctype": "EFRIS Sync Progress"
-#     }
-# ]
+fixtures = [
+    {
+        "doctype": "EFRIS Sync Progress"
+    }
+]
 
-# # yana_efris/hooks.py
+# yana_efris/hooks.py
 
 # override_whitelisted_methods = {
 #     "clefincode_chat.api.api_1_2_1.api.get_contacts": "yana_efris.overrides.chat_contacts.get_contacts",
