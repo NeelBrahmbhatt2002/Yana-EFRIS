@@ -92,30 +92,32 @@ def get_seller_details_json(self, sales_invoice):
         raise
 
 def get_summary(self):
-    efris_log_info("Getting summary JSON (patched for consistency)")
+    efris_log_info("Getting summary JSON (final patched version for tax consistency)")
 
-    # ✅ Sum up all tax amounts from self.taxes (same as taxDetails)
-    total_tax = 0.0
-    for tax in self.taxes:
+    # ✅ Step 1: Calculate tax total same way as get_tax_details
+    total_goods_tax = 0.0
+    for row in self.items:
         try:
-            total_tax += round(float(tax.tax_amount), 2)
+            total_goods_tax += round(float(row.tax), 2)
         except Exception:
             pass
-    total_tax = round(total_tax, 2)
+    total_goods_tax = round(total_goods_tax, 2)
 
-    # ✅ Ensure netAmount and grossAmount are consistent
+    # ✅ Step 2: Use same total for summary
     net_amount = round(float(self.net_amount), 2)
-    gross_amount = round(net_amount + total_tax, 2)
+    gross_amount = round(net_amount + total_goods_tax, 2)
+
+    efris_log_info(f"[SUMMARY FIX] net={net_amount}, tax={total_goods_tax}, gross={gross_amount}")
 
     return {
         "summary": {
             "netAmount": str(net_amount),
-            "taxAmount": str(total_tax),  # <- now matches taxDetails exactly
+            "taxAmount": str(total_goods_tax),  # ✅ Now exactly matches goodsDetails & taxDetails
             "grossAmount": str(gross_amount),
             "itemCount": str(self.item_count),
             "modeCode": str(self.mode_code),
-            "remarks": self.remarks,
-            "qrCode": self.qr_code
+            "remarks": self.remarks or "",
+            "qrCode": self.qr_code or ""
         }
     }
 
