@@ -344,3 +344,43 @@ def fetch_items_from_efris(pageNo,pageSize,company_name):
         frappe.throw("Failed to fetch items from EFRIS (T127). Check logs and credentials.")
     
     return response
+
+@frappe.whitelist()
+def fetch_live_stock_by_goods_code(goods_code, company=None):
+    """
+    Fetch item details & live stock from EFRIS using Interface Code T127.
+    Stores EFRIS Item ID in Item master for future use.
+    """
+    if not goods_code:
+        return {"success": False, "message": "Missing goods code."}
+
+    payload = {
+        "goodsCode": goods_code,
+        "pageNo": "1",
+        "pageSize": "10"
+    }
+
+    success, response = make_post(
+        interfaceCode="T127",
+        content=payload,
+        company_name=company or frappe.defaults.get_user_default("Company")
+    )
+
+    if not success:
+        return {"success": False, "message": response}
+
+    # Expecting response.records[0]
+    record = None
+    if isinstance(response, dict) and response.get("records"):
+        record = response["records"][0]
+    elif isinstance(response, list) and len(response) > 0:
+        record = response[0]
+
+    if not record:
+        return {"success": False, "message": "No item found in EFRIS."}
+
+    item_id = record.get("id")
+    stock = record.get("stock")
+
+    return {"success": True, "live_stock": stock, "efris_item_id": item_id}
+

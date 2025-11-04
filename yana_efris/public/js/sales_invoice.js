@@ -172,3 +172,41 @@ frappe.ui.form.on("Sales Invoice", {
 		frm.set_value("custom_new_customer_tin", "");
 	},
 });
+
+// frappe.ui.form.on("Sales Invoice Item", {
+// 	item_code: function (frm, cdt, cdn) {
+// 		const row = frappe.get_doc(cdt, cdn);
+// 		if (!row.item_code) return;
+
+// 		frappe.call({
+// 			method: "yana_efris.api.efris_api.fetch_live_stock_by_goods_code",
+// 			args: {
+// 				goods_code: row.item_code,
+// 				company: frm.doc.company,
+// 			},
+// 			callback: function (r) {
+// 				if (!r.message) return;
+// 				console.log("Stock Quantity", r);
+
+// 				if (r.message.success) {
+// 					const stock = r.message.live_stock;
+// 					const item_id = r.message.efris_item_id;
+
+// 					frappe.model.set_value(cdt, cdn, "custom_live_quantity", stock);
+
+// 					frappe.show_alert({
+// 						message: `Live EFRIS stock: <b>${stock}</b>`,
+// 						indicator: "green",
+// 					});
+
+// 					console.log(`EFRIS ID stored: ${item_id}`);
+// 				} else {
+// 					frappe.show_alert({
+// 						message: `EFRIS stock fetch failed: ${r.message.message || "Error"}`,
+// 						indicator: "red",
+// 					});
+// 				}
+// 			},
+// 		});
+// 	},
+// });

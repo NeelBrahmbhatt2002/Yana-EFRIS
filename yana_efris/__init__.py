@@ -19,6 +19,6 @@ original_efris_api.decrypt_aes_ecb = efris_api.decrypt_aes_ecb
 # Override JSON methods (working fine)
 EInvoice.get_einvoice_json = yana_einvoice.get_einvoice_json
 EInvoice.get_seller_details_json = yana_einvoice.get_seller_details_json
-# EInvoice.get_tax_details = yana_einvoice.get_tax_details
+EInvoice.get_tax_details = yana_einvoice.get_tax_details
 # original_doceinvoice.calculate_tax_by_category = yana_einvoice.calculate_tax_by_category
 # original_doceinvoice.calculate_additional_discounts = yana_einvoice.calculate_additional_discounts
