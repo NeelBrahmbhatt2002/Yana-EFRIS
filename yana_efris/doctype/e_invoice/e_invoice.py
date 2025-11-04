@@ -91,6 +91,35 @@ def get_seller_details_json(self, sales_invoice):
         frappe.log_error(f"Error getting seller details JSON: {e}", "E Invoice - get_seller_details_json")
         raise
 
+def get_summary(self):
+    efris_log_info("Getting summary JSON (patched for consistency)")
+
+    # ✅ Sum up all tax amounts from self.taxes (same as taxDetails)
+    total_tax = 0.0
+    for tax in self.taxes:
+        try:
+            total_tax += round(float(tax.tax_amount), 2)
+        except Exception:
+            pass
+    total_tax = round(total_tax, 2)
+
+    # ✅ Ensure netAmount and grossAmount are consistent
+    net_amount = round(float(self.net_amount), 2)
+    gross_amount = round(net_amount + total_tax, 2)
+
+    return {
+        "summary": {
+            "netAmount": str(net_amount),
+            "taxAmount": str(total_tax),  # <- now matches taxDetails exactly
+            "grossAmount": str(gross_amount),
+            "itemCount": str(self.item_count),
+            "modeCode": str(self.mode_code),
+            "remarks": self.remarks,
+            "qrCode": self.qr_code
+        }
+    }
+
+
 def get_tax_details(self):
     efris_log_info("Getting tax details JSON (Patched for rounding fix)")
 
