@@ -92,73 +92,63 @@ def get_seller_details_json(self, sales_invoice):
         raise
 
 def get_tax_details(self):
-    efris_log_info("Getting tax details JSON")
-    tax_details_list = []
+    efris_log_info("Getting tax details JSON (Patched for rounding fix)")
 
-    # 1️⃣ Calculate tax per category
+    # Step 1: Compute total tax from goodsDetails (item-wise tax sum)
+    total_goods_tax = 0.0
+    for row in self.items:
+        try:
+            total_goods_tax += round(float(row.tax), 2)
+        except Exception:
+            pass
+    total_goods_tax = round(total_goods_tax, 2)
+
+    # Step 2: Calculate per-category tax using existing logic
     tax_per_category = calculate_tax_by_category(self.invoice)
     trimmed_response = {}
     for key, value in tax_per_category.items():
-        # Extract the part inside the parentheses
-        tax_category = key.split('(')[1].split(')')[0]
-        tax_category = tax_category.replace('%', '')
+        tax_category = key.split('(')[1].split(')')[0].replace('%', '')
         trimmed_response[tax_category] = value
 
-    for row in self.taxes:
+    tax_details_list = []
+    accumulated_tax = 0.0
+
+    for idx, row in enumerate(self.taxes):
         tax_rate_key = '0'
         if row.tax_rate == '0.18':
             tax_rate = float(row.tax_rate)
-            tax_rate_key = str(int(tax_rate * 100))  # e.g. 18 for 18%
+            tax_rate_key = str(int(tax_rate * 100))
         else:
             tax_rate_key = row.tax_rate
 
         tax_category = row.tax_category_code.split(':')[0]
+        calculated_tax = round(trimmed_response.get(tax_rate_key, 0.0), 2)
 
-        # 2️⃣ Get calculated tax (from our earlier per-category map)
-        calculated_tax = 0.0
-        if tax_rate_key in trimmed_response:
-            raw_tax = trimmed_response[tax_rate_key]
-            calculated_tax = round(float(raw_tax), 2)
-
-            # Debug before rounding adjustment
-            efris_log_info(f"[DEBUG] Raw calculated_tax for rate {tax_rate_key}%: {raw_tax} -> Rounded: {calculated_tax}")
-
-        # 3️⃣ Handle mismatches or override conditions
-        try:
-            expected_discount_tax = calculate_additional_discounts(self.invoice)
-            if calculated_tax > 0 and calculated_tax != expected_discount_tax:
-                efris_log_info(f"[DEBUG] Adjusting tax for rate {tax_rate_key}% from {calculated_tax} → {expected_discount_tax} (due to discount mismatch)")
-                calculated_tax = expected_discount_tax
-        except Exception as ex:
-            efris_log_info(f"[DEBUG] No discount adjustment applied: {ex}")
-
-        # 4️⃣ Convert to float-safe fixed precision (for JSON safety)
-        calculated_tax = float(f"{calculated_tax:.2f}")
-
-        # 5️⃣ Debug summary for final value
-        efris_log_info(f"[DEBUG] Final tax for {tax_category} @ {row.tax_rate}: {calculated_tax}")
-
-        gross_amount = round(row.net_amount + calculated_tax, 2)
-
-        efris_log_info(f"[DEBUG] Gross = Net({row.net_amount}) + Tax({calculated_tax}) = {gross_amount}")
-
-        # 6️⃣ Append finalized object
+        # build taxDetails entry
         tax_details = {
             "taxCategoryCode": tax_category,
-            "netAmount": f"{row.net_amount:.2f}",
+            "netAmount": str(round(row.net_amount, 2)),
             "taxRate": str(row.tax_rate),
-            "taxAmount": f"{calculated_tax:.2f}",
-            "grossAmount": f"{gross_amount:.2f}",
+            "taxAmount": calculated_tax,
+            "grossAmount": round(row.net_amount + calculated_tax, 2),
             "exciseUnit": "",
             "exciseCurrency": "",
             "taxRateName": ""
         }
 
+        accumulated_tax += calculated_tax
         tax_details_list.append(tax_details)
 
-    # 7️⃣ Log final taxDetails summary for cross-check
-    total_tax = sum(float(td["taxAmount"]) for td in tax_details_list)
-    efris_log_info(f"[DEBUG] ✅ Total Tax from taxDetails = {total_tax:.2f}")
+    # Step 3: Adjust the final tax detail if total differs by rounding
+    difference = round(total_goods_tax - accumulated_tax, 2)
+    if abs(difference) > 0:
+        efris_log_info(f"Adjusting tax difference: {difference}")
+        tax_details_list[-1]["taxAmount"] = round(
+            tax_details_list[-1]["taxAmount"] + difference, 2
+        )
+        tax_details_list[-1]["grossAmount"] = round(
+            float(tax_details_list[-1]["grossAmount"]) + difference, 2
+        )
 
     return {"taxDetails": tax_details_list}
 
