@@ -228,18 +228,17 @@ def create_simple_item(rec,company_name):
     item.item_name = name
     item.description = name
     item.item_group = "Products"
-    item.is_stock_item = 1     # keep non-stock for now; adjust later if needed
+    item.is_stock_item = 1
     item.efris_item = 1
     item.efris_e_company = company_name
 
     frappe.log_error(f"Company Found={company_name}")
+
     stock_unit = frappe.utils.flt(rec.get("stock") or 0)
     selling_rate = frappe.utils.flt(rec.get("unitPrice") or 0)
-
-    # item.opening_stock = stock_unit
     item.standard_rate = selling_rate
 
-     # 2️⃣ Detect Stock UOM using EFRIS UOM Code
+    # 2️⃣ Detect Stock UOM using EFRIS UOM Code
     measure_unit = (rec.get("measureUnit") or "").strip()
     uom_name = None
 
@@ -256,16 +255,22 @@ def create_simple_item(rec,company_name):
     commodity_name = (rec.get("commodityCategoryName") or "").strip()
 
     e_tax_category = None
+    is_exempt_flag = (str(rec.get("isExempt") or "")).strip()
     tax_rate = str(rec.get("taxRate") or "").strip()
 
-    # Determine E Tax Category from taxRate
-    if tax_rate in ["0.18", "18", "18.0"]:
-        e_tax_category = "01:A: Standard (18%)"
-    elif tax_rate in ["0.0", "0", ""]:
-        e_tax_category = "02:B: Zero (0%)"
+    # Determine E Tax Category from isExempt and taxRate
+    if is_exempt_flag == "101":
+        e_tax_category = "03:C: Exempt (-)"
+    elif is_exempt_flag == "102":
+        if tax_rate in ["0.18", "18", "18.0"]:
+            e_tax_category = "01:A: Standard (18%)"
+        elif tax_rate in ["0.0", "0", ""]:
+            e_tax_category = "02:B: Zero (0%)"
+        else:
+            e_tax_category = "01:A: Standard (18%)"
     else:
-        e_tax_category = "03:C: Exempt (-)"  # fallback
-    
+        e_tax_category = "01:A: Standard (18%)"  # default fallback
+
     if commodity_code:
         existing_commodity = frappe.db.get_value(
             "EFRIS Commodity Code",
@@ -295,12 +300,13 @@ def create_simple_item(rec,company_name):
 
     try:
         item.insert(ignore_permissions=True)
-        # frappe.log_error(f"INSERTED: {code}", "DEBUG-SYNC")
+
         # 5️⃣ Handle opening stock via Stock Reconciliation
         if stock_unit > 0:
             create_stock_reconciliation_for_item(item.name, stock_unit, selling_rate, company_name)
 
         return True
+
     except Exception as e:
         frappe.log_error(f"INSERT FAILED: {code} | {e}", "DEBUG-SYNC")
         return False
