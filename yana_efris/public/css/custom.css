@@ -1,6 +1,6 @@
 /* Apply permanent color to EFRIS Live Stock column header */
 .grid-heading-row [data-fieldname="custom_efris_live_stock"] {
-    background-color: #baeb25 !important;
+    background-color: yellow !important;
     color: #000 !important;
     font-weight: 600 !important;
     text-align: center !important;
