@@ -22,6 +22,9 @@ app_include_js = [
     "/assets/yana_efris/js/exchange_rate_common.js",
 ]
 
+app_include_css = "/assets/yana_efris/css/custom.css"
+
+
 doctype_list_js = {
     "Item": "public/js/item_list.js"
 }
