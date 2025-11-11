@@ -35,6 +35,22 @@ fixtures = [
     }
 ]
 
+doc_events = {
+    "Sales Invoice": {
+        "autoname": "yana_efris.utils.custom_naming.generate_document_series"
+    },
+    "Purchase Invoice": {
+        "autoname": "yana_efris.utils.custom_naming.generate_document_series"
+    },
+    "Payment Entry": {
+        "autoname": "yana_efris.utils.custom_naming.generate_document_series"
+    },
+    "Journal Entry": {
+        "autoname": "yana_efris.utils.custom_naming.generate_document_series"
+    },
+}
+
+
 # yana_efris/hooks.py
 
 # override_whitelisted_methods = {
