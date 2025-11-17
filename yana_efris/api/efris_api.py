@@ -165,6 +165,8 @@ def generate_irn(sales_invoice):
     """
     efris_log_info("generate_irn called ...")
 
+    from yana_efris.utils.custom_naming import generate_document_series
+
     # Ensure doc exists
     sales_invoice = EInvoiceAPI.parse_sales_invoice(sales_invoice)
     original_name = sales_invoice.name
@@ -222,7 +224,7 @@ def generate_irn(sales_invoice):
         sales_invoice.efris_invoice = 1
 
         # Generate new SAL name
-        from yana_efris.utils.custom_naming import generate_document_series
+        
         generate_document_series(sales_invoice, "efris")
         new_name = sales_invoice.name
 
