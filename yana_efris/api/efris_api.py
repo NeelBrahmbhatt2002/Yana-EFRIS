@@ -170,6 +170,12 @@ def generate_irn(sales_invoice):
     original_name = sales_invoice.name
     efris_log_info(f"Parsed invoice: {original_name}")
 
+    _temp_doc = frappe.copy_doc(sales_invoice)
+    generate_document_series(_temp_doc, "efris")
+    predicted_sal_reference = _temp_doc.name
+
+    efris_log_info(f"[YANA DEBUG] Predicted next SAL number for referenceNo: {predicted_sal_reference}")
+
     # ---------------------------------------------------------------
     # 1️⃣ Submit to EFRIS FIRST — do NOT rename yet!
     # ---------------------------------------------------------------
@@ -177,6 +183,12 @@ def generate_irn(sales_invoice):
     einvoice.fetch_invoice_details()
 
     einvoice_json = einvoice.get_einvoice_json(sales_invoice)
+
+    try:
+        einvoice_json["sellerDetails"]["referenceNo"] = predicted_sal_reference
+        efris_log_info(f"[YANA DEBUG] Updated referenceNo in payload: {predicted_sal_reference}")
+    except Exception as e:
+        efris_log_info(f"[YANA ERROR] Failed to override referenceNo: {e}")
 
     company_name = sales_invoice.company
     efris_log_info(f"[YANA DEBUG] taxDetails JSON: {frappe.as_json(einvoice_json.get('taxDetails'))}")
