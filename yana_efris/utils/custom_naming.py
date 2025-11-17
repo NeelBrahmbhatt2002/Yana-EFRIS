@@ -1,43 +1,102 @@
 import frappe
-from frappe.model.naming import make_autoname
 from datetime import datetime
+import re
 
-# Transaction type short codes
+# Transaction code for SAL invoices
 TRANSACTION_CODES = {
     "Sales Invoice": "SAL",
     "Purchase Invoice": "PUR",
     "Payment Entry": "PAY",
-    "Journal Entry": "REC",  # you can change this if needed
+    "Journal Entry": "REC",
 }
 
-def generate_document_series(doc, method):
+def generate_document_series(doc, mode="pfi"):
     """
-    Auto-generate document name as CCCTTTYYYYMMDDXXXX
-    Example: MERSAL202511110001
+    mode = "pfi"   -> Generate Proforma naming series (PFI)
+    mode = "efris" -> Generate EFRIS naming series (SAL)
     """
+
     company = doc.company or "DEF"
     company_code = company[:3].upper()
-    trans_code = TRANSACTION_CODES.get(doc.doctype, "GEN")
 
-    date_str = datetime.now().strftime("%Y%m%d")
-    prefix = f"{company_code}{trans_code}{date_str}"
+    # -----------------------------------------
+    # PFI: Proforma Invoice Naming Series
+    # -----------------------------------------
+    if mode == "pfi":
+        trans_code = "PFI"
+        date_str = datetime.now().strftime("%Y%m%d")
+        prefix = f"{company_code}{trans_code}{date_str}"
 
-    # Fetch last used document for the same company and type
-    last_doc = frappe.db.sql(
-        f"""
-        SELECT name FROM `tab{doc.doctype}`
-        WHERE name LIKE %s
-        ORDER BY creation DESC
-        LIMIT 1
-        """,
-        (f"{prefix}%",),
-        as_dict=True,
-    )
+        # Fetch last PFI invoice ONLY
+        last_doc = frappe.db.sql(
+            """
+            SELECT name FROM `tabSales Invoice`
+            WHERE name LIKE %s
+            ORDER BY creation DESC
+            LIMIT 1
+            """,
+            (f"{prefix}%",),
+            as_dict=True
+        )
 
-    if last_doc:
-        last_number = int(last_doc[0]["name"][-4:])
-        next_number = str(last_number + 1).zfill(4)
-    else:
-        next_number = "0001"
+        if last_doc:
+            name = last_doc[0]["name"]
 
-    doc.name = f"{prefix}{next_number}"
+            # Extract 4-digit sequence
+            match = re.search(r'(\d{4})(?:-\d+)?$', name)
+            if match:
+                last_number = int(match.group(1))
+            else:
+                last_number = 0
+
+            next_number = str(last_number + 1).zfill(4)
+        else:
+            next_number = "0001"
+
+        doc.name = f"{prefix}{next_number}"
+        return  # DONE
+
+
+    # -----------------------------------------
+    # SAL: EFRIS Invoice Naming Series
+    # -----------------------------------------
+    if mode == "efris":
+        trans_code = TRANSACTION_CODES.get(doc.doctype, "SAL")
+
+        # IMPORTANT → SAL must use today's date
+        date_str = datetime.now().strftime("%Y%m%d")
+        prefix = f"{company_code}{trans_code}{date_str}"
+
+        # Fetch last SAL invoice for THIS DATE only
+        last_doc = frappe.db.sql(
+            """
+            SELECT name FROM `tabSales Invoice`
+            WHERE name LIKE %s
+            ORDER BY creation DESC
+            LIMIT 1
+            """,
+            (f"{prefix}%",),
+            as_dict=True
+        )
+
+        if last_doc:
+            name = last_doc[0]["name"]
+
+            # Extract last 4-digit sequence
+            match = re.search(r'(\d{4})(?:-\d+)?$', name)
+            if match:
+                last_number = int(match.group(1))
+            else:
+                last_number = 0
+
+            next_number = str(last_number + 1).zfill(4)
+
+        else:
+            next_number = "0001"
+
+        doc.name = f"{prefix}{next_number}"
+        return
+
+
+def custom_autoname(doc, method=None):
+    generate_document_series(doc, mode="pfi")

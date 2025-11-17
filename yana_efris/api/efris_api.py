@@ -162,28 +162,21 @@ def fetch_efris_branches(company_name=None):
 def generate_irn(sales_invoice):
     """
     Entry point (server-side) that builds the EFRIS payload and submits it.
-    sales_invoice may be a name or a dict/doc - parse_sales_invoice should return a frappe Document.
     """
     efris_log_info("generate_irn called ...")
 
-    # Ensure we have a Sales Invoice Doc (frappe Document) - parse_sales_invoice should return a doc
+    # Ensure doc exists
     sales_invoice = EInvoiceAPI.parse_sales_invoice(sales_invoice)
-    efris_log_info(f"after parse done... Sales Invoice: {sales_invoice.name}")
+    original_name = sales_invoice.name
+    efris_log_info(f"Parsed invoice: {original_name}")
 
-    # Create E Invoice doc (traceability) and fetch any additional details
+    # ---------------------------------------------------------------
+    # 1️⃣ Submit to EFRIS FIRST — do NOT rename yet!
+    # ---------------------------------------------------------------
     einvoice = EInvoiceAPI.create_einvoice(sales_invoice.name)
     einvoice.fetch_invoice_details()
 
-    # Build payload - pass sales_invoice doc into get_einvoice_json so we can read branch/company directly
     einvoice_json = einvoice.get_einvoice_json(sales_invoice)
-
-    # debug log seller part to verify branch fields are present
-    try:
-        seller_part = einvoice_json.get("sellerDetails") or einvoice_json.get("sellerDetails", {})
-        efris_log_info(f"Built sellerDetails for {sales_invoice.name}: {frappe.as_json(seller_part)}")
-    except Exception:
-        # fallback safe logging
-        efris_log_info("Built einvoice_json (sellerDetails logging failed)")
 
     company_name = sales_invoice.company
     efris_log_info(f"[YANA DEBUG] taxDetails JSON: {frappe.as_json(einvoice_json.get('taxDetails'))}")
@@ -198,13 +191,67 @@ def generate_irn(sales_invoice):
         reference_document=sales_invoice.name
     )
 
-    if status:
-        EInvoiceAPI.handle_successful_irn_generation(einvoice, response)
-        efris_log_info(f"EFRIS Generated Successfully. :{einvoice.name}")
-        frappe.msgprint(_("EFRIS Generated Successfully."), alert=1)
-    else:
-        # response may be dict or str; keep it readable
+    # ---------------------------------------------------------------
+    # 2️⃣ If API FAILED → do NOT rename, do NOT set efris_invoice=1
+    # ---------------------------------------------------------------
+    if not status:
         frappe.throw(response, title=_('EFRIS Generation Failed'))
+
+    # ---------------------------------------------------------------
+    # 3️⃣ API SUCCESS → Now rename invoice from PFI → SAL series
+    # ---------------------------------------------------------------
+    try:
+        efris_log_info("EFRIS success, converting invoice to SAL series...")
+
+        # Reload latest version
+        sales_invoice = frappe.get_doc("Sales Invoice", original_name)
+
+        # Mark as EFRIS invoice
+        sales_invoice.efris_invoice = 1
+
+        # Generate new SAL name
+        from yana_efris.utils.custom_naming import generate_document_series
+        generate_document_series(sales_invoice, "efris")
+        new_name = sales_invoice.name
+
+        # Rename in DB
+        if original_name != new_name:
+            frappe.rename_doc("Sales Invoice", original_name, new_name, force=True)
+            efris_log_info(f"Renamed invoice: {original_name} → {new_name}")
+
+            # 🔥 Update EInvoice reference_doc AFTER renaming
+            try:
+                frappe.rename_doc("E Invoice", einvoice.name, new_name, force=True)
+                efris_log_info(f"Renamed EInvoice: {einvoice.name} → {new_name}")
+                einvoice = frappe.get_doc("E Invoice", new_name)
+                # einvoice.reference_document = new_name
+                einvoice.save()
+                efris_log_info(f"Updated EInvoice reference_document to {new_name}")
+            except Exception as e:
+                efris_log_info(f"Failed to update EInvoice reference_document: {e}")
+
+        # Save renamed doc
+        sales_invoice = frappe.get_doc("Sales Invoice", new_name)
+        sales_invoice.flags.ignore_validate_update_after_submit = True
+        sales_invoice.flags.ignore_validate = True
+        sales_invoice.flags.ignore_on_update = True
+        sales_invoice.flags.ignore_mandatory = True
+        sales_invoice.posting_date = frappe.utils.today()
+        sales_invoice.posting_time = frappe.utils.nowtime()
+        if sales_invoice.due_date == sales_invoice.get_db_value("posting_date"):
+            sales_invoice.due_date = frappe.utils.today()
+        sales_invoice.save()
+
+    except Exception as e:
+        efris_log_info(f"Error renaming invoice after EFRIS success: {e}")
+        frappe.throw(f"Invoice renaming failed: {e}")
+
+    # ---------------------------------------------------------------
+    # 4️⃣ Continue success workflow
+    # ---------------------------------------------------------------
+    EInvoiceAPI.handle_successful_irn_generation(einvoice, response)
+    efris_log_info(f"EFRIS Generated Successfully. :{einvoice.name}")
+    frappe.msgprint(_("EFRIS Generated Successfully."), alert=1)
 
     return status, response
 

@@ -18,70 +18,82 @@
 	};
 })();
 frappe.ui.form.on("Sales Invoice", {
-	refresh: async function (frm) {
-		console.log("This console is working");
+	// refresh(frm) {
+	// 	if (
+	// 		frm.doc.efris_invoice &&
+	// 		frm.doc.__last_sync_name &&
+	// 		frm.doc.name !== frm.doc.__last_sync_name
+	// 	) {
+	// 		// route to updated name
+	// 		frappe.set_route("Form", "Sales Invoice", frm.doc.name);
+	// 	}
+	// },
+	// refresh: async function (frm) {
+	// 	console.log("This console is working");
 
-		// Only for Return (Credit Note) invoices
-		if (frm.doc.is_return && frm.doc.efris_e_invoice) {
-			try {
-				// Fetch linked E-Invoice document
-				const e_invoice = await frappe.db.get_doc("E Invoice", frm.doc.efris_e_invoice);
+	// 	if (!frm.doc) return;
 
-				console.log(
-					"[YANA EFRIS] Hiding 'Submit To EFRIS' button as invoice already submitted."
-				);
-				// Wait until buttons render, then hide them
-				setTimeout(() => {
-					$('.btn:contains("Submit To EFRIS")').hide();
-				}, 300);
+	// 	// Only for Return (Credit Note) invoices
+	// 	if (frm.doc.is_return && frm.doc.efris_e_invoice) {
+	// 		try {
+	// 			// Fetch linked E-Invoice document
+	// 			const e_invoice = await frappe.db.get_doc("E Invoice", frm.doc.efris_e_invoice);
 
-				// Now check the E-Invoice status from that document
-				if (e_invoice.status === "EFRIS Credit Note Pending") {
-					console.log(
-						"[YANA EFRIS] Showing 'Check EFRIS Approval Status' button for Credit Note."
-					);
+	// 			console.log(
+	// 				"[YANA EFRIS] Hiding 'Submit To EFRIS' button as invoice already submitted."
+	// 			);
+	// 			// Wait until buttons render, then hide them
+	// 			setTimeout(() => {
+	// 				$('.btn:contains("Submit To EFRIS")').hide();
+	// 			}, 300);
 
-					frm.add_custom_button(__("Check EFRIS Approval Status"), async function () {
-						if (frm.is_dirty()) {
-							frappe.throw({
-								message: __(
-									"You must save the document before making e-invoicing request."
-								),
-								title: __("Unsaved Document"),
-							});
-							return;
-						}
+	// 			// Now check the E-Invoice status from that document
+	// 			if (e_invoice.status === "EFRIS Credit Note Pending") {
+	// 				console.log(
+	// 					"[YANA EFRIS] Showing 'Check EFRIS Approval Status' button for Credit Note."
+	// 				);
 
-						await frm.reload_doc();
+	// 				frm.add_custom_button(__("Check EFRIS Approval Status"), async function () {
+	// 					if (frm.is_dirty()) {
+	// 						frappe.throw({
+	// 							message: __(
+	// 								"You must save the document before making e-invoicing request."
+	// 							),
+	// 							title: __("Unsaved Document"),
+	// 						});
+	// 						return;
+	// 					}
 
-						try {
-							await frappe.call({
-								method: "uganda_compliance.efris.api_classes.e_invoice.confirm_irn_cancellation",
-								args: { sales_invoice: frm.doc },
-								freeze: true,
-								freeze_message: __("Checking approval status from EFRIS..."),
-							});
-							await frm.reload_doc();
-						} catch (error) {
-							console.error(
-								`[YANA EFRIS] Error confirming IRN cancellation:`,
-								error
-							);
-							frappe.msgprint(
-								__("Error while checking approval status from EFRIS.")
-							);
-						}
-					});
-				} else {
-					console.log(
-						`[YANA EFRIS] No action button shown, status = ${e_invoice.einvoice_status}`
-					);
-				}
-			} catch (error) {
-				console.error("[YANA EFRIS] Failed to fetch linked E-Invoice:", error);
-			}
-		}
-	},
+	// 					await frm.reload_doc();
+
+	// 					try {
+	// 						await frappe.call({
+	// 							method: "uganda_compliance.efris.api_classes.e_invoice.confirm_irn_cancellation",
+	// 							args: { sales_invoice: frm.doc },
+	// 							freeze: true,
+	// 							freeze_message: __("Checking approval status from EFRIS..."),
+	// 						});
+	// 						await frm.reload_doc();
+	// 					} catch (error) {
+	// 						console.error(
+	// 							`[YANA EFRIS] Error confirming IRN cancellation:`,
+	// 							error
+	// 						);
+	// 						frappe.msgprint(
+	// 							__("Error while checking approval status from EFRIS.")
+	// 						);
+	// 					}
+	// 				});
+	// 			} else {
+	// 				console.log(
+	// 					`[YANA EFRIS] No action button shown, status = ${e_invoice.einvoice_status}`
+	// 				);
+	// 			}
+	// 		} catch (error) {
+	// 			console.error("[YANA EFRIS] Failed to fetch linked E-Invoice:", error);
+	// 		}
+	// 	}
+	// },
 	company(frm) {
 		if (frm.doc.company) {
 			frappe.call({

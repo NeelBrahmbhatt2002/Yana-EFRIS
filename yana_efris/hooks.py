@@ -24,7 +24,6 @@ app_include_js = [
 
 app_include_css = "/assets/yana_efris/css/custom.css"
 
-
 doctype_list_js = {
     "Item": "public/js/item_list.js"
 }
@@ -37,19 +36,18 @@ fixtures = [
 
 doc_events = {
     "Sales Invoice": {
-        "autoname": "yana_efris.utils.custom_naming.generate_document_series"
+        "autoname": "yana_efris.utils.custom_naming.custom_autoname"
     },
     "Purchase Invoice": {
-        "autoname": "yana_efris.utils.custom_naming.generate_document_series"
+        "autoname": "yana_efris.utils.custom_naming.custom_autoname"
     },
     "Payment Entry": {
-        "autoname": "yana_efris.utils.custom_naming.generate_document_series"
+        "autoname": "yana_efris.utils.custom_naming.custom_autoname"
     },
     "Journal Entry": {
-        "autoname": "yana_efris.utils.custom_naming.generate_document_series"
+        "autoname": "yana_efris.utils.custom_naming.custom_autoname"
     },
 }
-
 
 # yana_efris/hooks.py
 
