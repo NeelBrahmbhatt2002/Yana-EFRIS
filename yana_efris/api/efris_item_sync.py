@@ -395,24 +395,47 @@ def create_simple_item(rec, company_name):
     )
 
     # ----------------------------------------------------------------------
-    # 8️⃣ UOM Detection using EFRIS UOM Code
+    # 8️⃣ UOM Handling (AUTO-CREATE + ADD TO UNITS TABLE)
     # ----------------------------------------------------------------------
     measure_unit = (rec.get("measureUnit") or "").strip()
     uom_name = None
 
+    # Try lookup by custom field
     if measure_unit:
         uom_name = frappe.db.get_value("UOM", {"efris_uom_code": measure_unit}, "name")
-        frappe.log_error(
-            f"UOM lookup: efris_uom_code={measure_unit}, result={uom_name}",
-            "Page Skip Debug"
-        )
 
+    # Fallback: lookup by name
+    if not uom_name and measure_unit:
+        uom_name = frappe.db.get_value("UOM", {"name": measure_unit}, "name")
+
+    # If still missing → auto-create
+    if not uom_name and measure_unit:
+        frappe.log_error(f"UOM {measure_unit} missing. Creating new UOM.", "Page Skip Debug")
+        uom_doc = frappe.new_doc("UOM")
+        uom_doc.uom_name = measure_unit
+        try:
+            uom_doc.efris_uom_code = measure_unit
+        except Exception:
+            pass
+        uom_doc.insert(ignore_permissions=True)
+        frappe.db.commit()
+        uom_name = uom_doc.name
+
+    # Final fallback
     if not uom_name:
         uom_name = "Nos"
-        frappe.log_error(
-            f"Fallback UOM applied. Using 'Nos'.",
-            "Page Skip Debug"
-        )
+
+    item.stock_uom = uom_name
+
+    # ADD UOM to Units Table → **THIS FIXES YOUR ERROR**
+    try:
+        item.append("units", {
+            "uom": uom_name,
+            "conversion_factor": 1,
+        })
+        frappe.log_error(f"✔ Added UOM row to Item Units: {uom_name}", "Page Skip Debug")
+    except Exception as ex:
+        frappe.log_error(f"❌ Failed to add units row: {ex}", "Page Skip Debug")
 
     item.stock_uom = uom_name
 
