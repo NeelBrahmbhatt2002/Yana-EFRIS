@@ -179,8 +179,22 @@ def sync_efris_items(company_name: str):
             rec = records[i]
             code = (rec.get("goodsCode") or "").strip()
 
+            is_numeric = code.isdigit()
+            company_abbr = frappe.db.get_value("Company", company_name, "abbr") or ""
+
+            if is_numeric:
+                item_docname = f"{company_abbr}-{code}"
+            else:
+                item_docname = code  # already prefixed in EFRIS
+
+            frappe.log_error(
+                f"Existence check: goodsCode={code}, numeric={is_numeric}, "
+                f"expected_docname={item_docname}",
+                "Page Skip Debug"
+            )
+
             # Log the record we're about to inspect
-            frappe.log_error(f"Inspecting record page={page_no} index={i} code={code}", "Page Skip Debug")
+            frappe.log_error(f"Inspecting record page={page_no} index={i} code={item_docname}", "Page Skip Debug")
 
             if not code:
                 frappe.log_error(f"Skipping record with empty code page={page_no} index={i}", "Page Skip Debug")
@@ -188,22 +202,22 @@ def sync_efris_items(company_name: str):
                 continue
 
             # If exists, skip but log (so you can see many existing items causing fast page progression)
-            if frappe.db.exists("Item", code):
-                frappe.log_error(f"Skipping existing Item code={code} page={page_no} index={i}", "Page Skip Debug")
+            if frappe.db.exists("Item", item_docname):
+                frappe.log_error(f"Skipping existing Item code={item_docname} page={page_no} index={i}", "Page Skip Debug")
             else:
                 try:
                     created = create_simple_item(rec, company_name)
                     if created:
                         created_count += 1
                         frappe.log_error(
-                            f"ITEM CREATED code={code} page={page_no} index={i} total_created={created_count}",
+                            f"ITEM CREATED code={item_docname} page={page_no} index={i} total_created={created_count}",
                             "Page Skip Debug"
                         )
                     else:
-                        frappe.log_error(f"create_simple_item returned False for code={code} page={page_no} index={i}", "Page Skip Debug")
+                        frappe.log_error(f"create_simple_item returned False for code={item_docname} page={page_no} index={i}", "Page Skip Debug")
                 except Exception:
                     tb = frappe.get_traceback()
-                    frappe.log_error(f"Exception while creating Item code={code} page={page_no} index={i} trace={tb}", "Page Skip Debug")
+                    frappe.log_error(f"Exception while creating Item code={item_docname} page={page_no} index={i} trace={tb}", "Page Skip Debug")
 
             i += 1
 
