@@ -432,17 +432,15 @@ def create_simple_item(rec, company_name):
         item.append("uoms", {
         "uom": uom_name,
         "conversion_factor": 1,
-        "is_efris_uom": 1,    # optional, if exists
-        "package_unit": 1,
-        "piece_unit": None,
-        "package_scale": 1,
-        "unit_price": selling_rate  # optional
+        "efris_uom": 1,    # optional, if exists
+        "efris_package_unit": 1,
+        "efris_is_piece_unit": None,
+        "efris_package_scale_value": 1,
+        "efris_unit_price": item.standard_rate  # optional
         })
         frappe.log_error(f"✔ Added UOM row to Item Units: {uom_name}", "Page Skip Debug")
     except Exception as ex:
         frappe.log_error(f"❌ Failed to add units row: {ex}", "Page Skip Debug")
-
-    item.stock_uom = uom_name
 
     # ----------------------------------------------------------------------
     # 9️⃣ Commodity Code handling
