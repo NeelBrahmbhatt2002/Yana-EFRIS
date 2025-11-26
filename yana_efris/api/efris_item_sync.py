@@ -267,54 +267,151 @@ def fetch_efris_items_page(company_name: str, page_no: int, page_size: int):
 # Create item (minimal fields; safe duplicate check)
 # ─────────────────────────────────────────────────────
 def create_simple_item(rec, company_name):
+    # ----------------------------------------------------------------------
+    # 1️⃣ Extract EFRIS fields
+    # ----------------------------------------------------------------------
     code = (rec.get("goodsCode") or "").strip()
+
     if not code:
-        frappe.log_error("create_simple_item called with empty code", "Page Skip Debug")
+        frappe.log_error(
+            "create_simple_item: Received empty goodsCode. Skipping.",
+            "Page Skip Debug"
+        )
         return False
 
-    if frappe.db.exists("Item", code):
-        frappe.log_error(f"create_simple_item: Item already exists code={code}", "Page Skip Debug")
-        return False  # already there
+    frappe.log_error(
+        f"create_simple_item START: goodsCode={code}, company={company_name}",
+        "Page Skip Debug"
+    )
 
-    name = (rec.get("goodsName") or code).strip()
+    # ----------------------------------------------------------------------
+    # 2️⃣ Detect if goodsCode is numeric-only
+    # ----------------------------------------------------------------------
+    is_numeric_code = code.isdigit()
+    frappe.log_error(
+        f"goodsCode={code}, is_numeric_code={is_numeric_code}",
+        "Page Skip Debug"
+    )
 
+    # ----------------------------------------------------------------------
+    # 3️⃣ Fetch Company Abbreviation
+    # ----------------------------------------------------------------------
+    company_abbr = frappe.db.get_value("Company", company_name, "abbr")
+    frappe.log_error(
+        f"company_abbr lookup: company={company_name}, abbr={company_abbr}",
+        "Page Skip Debug"
+    )
+
+    if not company_abbr:
+        frappe.log_error(
+            f"⚠️ Company Abbreviation NOT FOUND for company={company_name}. Using fallback = company_name.",
+            "Page Skip Debug"
+        )
+        company_abbr = company_name.replace(" ", "")[:4].upper()
+
+    # ----------------------------------------------------------------------
+    # 4️⃣ Build ERPNext document.name (item.name)
+    # ----------------------------------------------------------------------
+    if is_numeric_code:
+        # Numeric only → we ADD company prefix
+        item_docname = f"{company_abbr}-{code}"
+        frappe.log_error(
+            f"Prefix rule applied: new item_docname={item_docname}",
+            "Page Skip Debug"
+        )
+    else:
+        # Already prefixed (MHS001 etc.)
+        item_docname = code
+        frappe.log_error(
+            f"Prefix NOT applied because code is not numeric. item_docname={item_docname}",
+            "Page Skip Debug"
+        )
+
+    # ----------------------------------------------------------------------
+    # 5️⃣ Prevent duplicate by checking Item.name
+    # ----------------------------------------------------------------------
+    if frappe.db.exists("Item", item_docname):
+        frappe.log_error(
+            f"❌ Item already exists with name={item_docname}. SKIPPING.",
+            "Page Skip Debug"
+        )
+        return False
+
+    # ----------------------------------------------------------------------
+    # 6️⃣ Create Item Doc
+    # ----------------------------------------------------------------------
     item = frappe.new_doc("Item")
+
+    # Set final document name manually
+    item.name = item_docname
+    item.flags.ignore_mandatory = True
+    item.flags.ignore_permissions = True
+    item.flags.ignore_validate = True
+    item.flags.name_set = True
+
+    # Store original EFRIS goodsCode in item_code
     item.item_code = code
+
+    # Keep name visible
+    name = (rec.get("goodsName") or code).strip()
     item.item_name = name
     item.description = name
+
+    # Other required fields
     item.item_group = "Products"
     item.is_stock_item = 1
     item.efris_item = 1
     item.efris_e_company = company_name
 
-    frappe.log_error(f"Creating item code={code} for company={company_name}", "Page Skip Debug")
+    frappe.log_error(
+        f"Item doc initialized: name={item_docname}, item_code={code}, item_name={name}",
+        "Page Skip Debug"
+    )
 
+    # ----------------------------------------------------------------------
+    # 7️⃣ Standard Selling Rate
+    # ----------------------------------------------------------------------
     stock_unit = frappe.utils.flt(rec.get("stock") or 0)
     selling_rate = frappe.utils.flt(rec.get("unitPrice") or 0)
     item.standard_rate = selling_rate
 
-    # 2️⃣ Detect Stock UOM using EFRIS UOM Code
+    frappe.log_error(
+        f"Pricing: stock={stock_unit}, selling_rate={selling_rate}",
+        "Page Skip Debug"
+    )
+
+    # ----------------------------------------------------------------------
+    # 8️⃣ UOM Detection using EFRIS UOM Code
+    # ----------------------------------------------------------------------
     measure_unit = (rec.get("measureUnit") or "").strip()
     uom_name = None
 
     if measure_unit:
         uom_name = frappe.db.get_value("UOM", {"efris_uom_code": measure_unit}, "name")
+        frappe.log_error(
+            f"UOM lookup: efris_uom_code={measure_unit}, result={uom_name}",
+            "Page Skip Debug"
+        )
 
     if not uom_name:
-        uom_name = "Nos"  # fallback if EFRIS UOM code not found
+        uom_name = "Nos"
+        frappe.log_error(
+            f"Fallback UOM applied. Using 'Nos'.",
+            "Page Skip Debug"
+        )
 
     item.stock_uom = uom_name
-    frappe.log_error(f"Selected UOM={uom_name} for measureUnit={measure_unit} code={code}", "Page Skip Debug")
 
-    # 3️⃣ Handle Commodity Code
+    # ----------------------------------------------------------------------
+    # 9️⃣ Commodity Code handling
+    # ----------------------------------------------------------------------
     commodity_code = (rec.get("commodityCategoryCode") or "").strip()
     commodity_name = (rec.get("commodityCategoryName") or "").strip()
 
-    e_tax_category = None
     is_exempt_flag = (str(rec.get("isExempt") or "")).strip()
     tax_rate = str(rec.get("taxRate") or "").strip()
 
-    # Determine E Tax Category from isExempt and taxRate
+    # Determine tax category
     if is_exempt_flag == "101":
         e_tax_category = "03:C: Exempt (-)"
     elif is_exempt_flag == "102":
@@ -325,7 +422,12 @@ def create_simple_item(rec, company_name):
         else:
             e_tax_category = "01:A: Standard (18%)"
     else:
-        e_tax_category = "01:A: Standard (18%)"  # default fallback
+        e_tax_category = "01:A: Standard (18%)"
+
+    frappe.log_error(
+        f"Commodity: code={commodity_code}, name={commodity_name}, tax_cat={e_tax_category}",
+        "Page Skip Debug"
+    )
 
     if commodity_code:
         existing_commodity = frappe.db.get_value(
@@ -335,43 +437,70 @@ def create_simple_item(rec, company_name):
         )
 
         if not existing_commodity:
-            frappe.log_error(f"Creating EFRIS Commodity Code {commodity_code} name={commodity_name} tax_category={e_tax_category}", "Page Skip Debug")
+            frappe.log_error(
+                f"Creating new commodity {commodity_code}",
+                "Page Skip Debug"
+            )
             commodity_doc = frappe.new_doc("EFRIS Commodity Code")
             commodity_doc.commodity_code = commodity_code
             commodity_doc.commodity_name = commodity_name
             commodity_doc.e_tax_category = e_tax_category
             commodity_doc.insert(ignore_permissions=True)
             frappe.db.commit()
-
             item.efris_commodity_code = commodity_doc.name
-            frappe.log_error(f"Created commodity doc {commodity_doc.name} for code={commodity_code}", "Page Skip Debug")
         else:
+            frappe.log_error(
+                f"Using existing commodity={existing_commodity}",
+                "Page Skip Debug"
+            )
             item.efris_commodity_code = existing_commodity
-            frappe.log_error(f"Linked to existing commodity {existing_commodity} for code={commodity_code}", "Page Skip Debug")
 
-    if company_name:
-        template = get_tax_template_for_company(company_name, rec)
-        if template:
-            item.append("taxes", {
-                "item_tax_template": template
-            })
-            frappe.log_error(f"Appended tax template {template} to item {code}", "Page Skip Debug")
+    # ----------------------------------------------------------------------
+    # 🔟 Assign Item Tax Template (MUST for EFRIS Items!)
+    # ----------------------------------------------------------------------
+    template = get_tax_template_for_company(company_name, rec)
+    frappe.log_error(f"Tax template selected={template}", "Page Skip Debug")
 
+    if not template:
+        frappe.log_error(
+            f"❌ No Item Tax Template found for item={item_docname}. Insert WILL FAIL.",
+            "Page Skip Debug"
+        )
+    else:
+        item.append("taxes", {"item_tax_template": template})
+        frappe.log_error(
+            f"✔ Added Item Tax Template {template}",
+            "Page Skip Debug"
+        )
+
+    # ----------------------------------------------------------------------
+    # 1️⃣1️⃣ Insert Item
+    # ----------------------------------------------------------------------
     try:
         item.insert(ignore_permissions=True)
-        frappe.log_error(f"Inserted Item code={code}", "Page Skip Debug")
-
-        # 5️⃣ Handle opening stock via Stock Reconciliation
-        if stock_unit > 0:
-            frappe.log_error(f"Will create stock reconciliation for item={code} qty={stock_unit} rate={selling_rate}", "Page Skip Debug")
-            create_stock_reconciliation_for_item(item.name, stock_unit, selling_rate, company_name)
-
-        return True
-
+        frappe.log_error(
+            f"✔ Item INSERTED successfully: name={item_docname}, item_code={code}",
+            "Page Skip Debug"
+        )
     except Exception as e:
         tb = frappe.get_traceback()
-        frappe.log_error(f"INSERT FAILED: {code} | {e} trace={tb}", "Page Skip Debug")
+        frappe.log_error(
+            f"❌ INSERT FAILED for {item_docname}: {e}\nTRACE:\n{tb}",
+            "Page Skip Debug"
+        )
         return False
+
+    # ----------------------------------------------------------------------
+    # 1️⃣2️⃣ Stock Reconciliation (opening stock)
+    # ----------------------------------------------------------------------
+    if stock_unit > 0:
+        frappe.log_error(
+            f"Creating Stock Reconciliation: item={item_docname}, qty={stock_unit}, rate={selling_rate}",
+            "Page Skip Debug"
+        )
+        create_stock_reconciliation_for_item(item.name, stock_unit, selling_rate, company_name)
+
+    return True
 
 def create_stock_reconciliation_for_item(item_code, qty, rate, company_name):
     """Creates a Stock Reconciliation document for a single item."""
