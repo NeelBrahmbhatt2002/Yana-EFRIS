@@ -429,9 +429,14 @@ def create_simple_item(rec, company_name):
 
     # ADD UOM to Units Table → **THIS FIXES YOUR ERROR**
     try:
-        item.append("units", {
-            "uom": uom_name,
-            "conversion_factor": 1,
+        item.append("uoms", {
+        "uom": uom_name,
+        "conversion_factor": 1,
+        "is_efris_uom": 1,    # optional, if exists
+        "package_unit": 1,
+        "piece_unit": None,
+        "package_scale": 1,
+        "unit_price": selling_rate  # optional
         })
         frappe.log_error(f"✔ Added UOM row to Item Units: {uom_name}", "Page Skip Debug")
     except Exception as ex:
