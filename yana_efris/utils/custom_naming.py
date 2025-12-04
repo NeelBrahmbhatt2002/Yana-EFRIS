@@ -49,7 +49,6 @@ def generate_document_series(doc, mode="pfi"):
     company_code = frappe.db.get_value("Company", company, "abbr") or company[:3].upper()
     company_code = company_code.upper()
 
-
     # -----------------------------------
     # 1️⃣ PFI NAMING SERIES (Proforma)
     # -----------------------------------
