@@ -17,83 +17,78 @@
 		return original_msgprint.apply(this, arguments);
 	};
 })();
+
+// Global EFRIS sequential queue
+let efrisQueue = Promise.resolve();
+
+// ---------------------------------------------------------
+// Queue-based API call (ENSURES ONLY ONE REQUEST AT A TIME)
+// ---------------------------------------------------------
+
+function queue_live_stock_call(frm, row) {
+	if (!row.item_code) {
+		console.log("[EFRIS] Skipping row, no item code.", row);
+		return;
+	}
+
+	// Avoid double API calls for the same row
+	if (row.__live_stock_fetched) {
+		console.log(`[EFRIS] Already fetched → ${row.item_code}`);
+		return;
+	}
+
+	// Mark row as processed BEFORE API call to avoid repeat triggers
+	row.__live_stock_fetched = true;
+
+	console.log(`[EFRIS QUEUE] Added → ${row.item_code}`);
+
+	// Add API call to queue
+	efrisQueue = efrisQueue.then(() => {
+		console.log(`[EFRIS QUEUE] Processing → ${row.item_code}`);
+
+		return new Promise((resolve) => {
+			frappe.call({
+				method: "yana_efris.api.efris_api.fetch_live_stock_by_goods_code",
+				args: {
+					goods_code: row.item_code,
+					company: frm.doc.company,
+				},
+				callback(r) {
+					console.log(`[EFRIS] API Response for ${row.item_code}:`, r);
+
+					if (r.message?.success) {
+						frappe.model.set_value(
+							row.doctype,
+							row.name,
+							"custom_efris_live_stock",
+							r.message.live_stock
+						);
+
+						frappe.show_alert({
+							message: `EFIRS Live Stock (${row.item_code}): <b>${r.message.live_stock}</b>`,
+							indicator: "green",
+						});
+					} else {
+						console.error(`[EFRIS] Failed for ${row.item_code}:`, r.message);
+						frappe.show_alert({
+							message: `EFRIS fetch failed (${row.item_code}): ${r.message.message}`,
+							indicator: "red",
+						});
+					}
+
+					resolve(); // Move queue to next request
+				},
+
+				error(err) {
+					console.error(`[EFRIS] Network/API Error for ${row.item_code}:`, err);
+					resolve(); // Continue queue even on error
+				},
+			});
+		});
+	});
+}
+
 frappe.ui.form.on("Sales Invoice", {
-	// refresh(frm) {
-	// 	if (
-	// 		frm.doc.efris_invoice &&
-	// 		frm.doc.__last_sync_name &&
-	// 		frm.doc.name !== frm.doc.__last_sync_name
-	// 	) {
-	// 		// route to updated name
-	// 		frappe.set_route("Form", "Sales Invoice", frm.doc.name);
-	// 	}
-	// },
-	// refresh: async function (frm) {
-	// 	console.log("This console is working");
-
-	// 	if (!frm.doc) return;
-
-	// 	// Only for Return (Credit Note) invoices
-	// 	if (frm.doc.is_return && frm.doc.efris_e_invoice) {
-	// 		try {
-	// 			// Fetch linked E-Invoice document
-	// 			const e_invoice = await frappe.db.get_doc("E Invoice", frm.doc.efris_e_invoice);
-
-	// 			console.log(
-	// 				"[YANA EFRIS] Hiding 'Submit To EFRIS' button as invoice already submitted."
-	// 			);
-	// 			// Wait until buttons render, then hide them
-	// 			setTimeout(() => {
-	// 				$('.btn:contains("Submit To EFRIS")').hide();
-	// 			}, 300);
-
-	// 			// Now check the E-Invoice status from that document
-	// 			if (e_invoice.status === "EFRIS Credit Note Pending") {
-	// 				console.log(
-	// 					"[YANA EFRIS] Showing 'Check EFRIS Approval Status' button for Credit Note."
-	// 				);
-
-	// 				frm.add_custom_button(__("Check EFRIS Approval Status"), async function () {
-	// 					if (frm.is_dirty()) {
-	// 						frappe.throw({
-	// 							message: __(
-	// 								"You must save the document before making e-invoicing request."
-	// 							),
-	// 							title: __("Unsaved Document"),
-	// 						});
-	// 						return;
-	// 					}
-
-	// 					await frm.reload_doc();
-
-	// 					try {
-	// 						await frappe.call({
-	// 							method: "uganda_compliance.efris.api_classes.e_invoice.confirm_irn_cancellation",
-	// 							args: { sales_invoice: frm.doc },
-	// 							freeze: true,
-	// 							freeze_message: __("Checking approval status from EFRIS..."),
-	// 						});
-	// 						await frm.reload_doc();
-	// 					} catch (error) {
-	// 						console.error(
-	// 							`[YANA EFRIS] Error confirming IRN cancellation:`,
-	// 							error
-	// 						);
-	// 						frappe.msgprint(
-	// 							__("Error while checking approval status from EFRIS.")
-	// 						);
-	// 					}
-	// 				});
-	// 			} else {
-	// 				console.log(
-	// 					`[YANA EFRIS] No action button shown, status = ${e_invoice.einvoice_status}`
-	// 				);
-	// 			}
-	// 		} catch (error) {
-	// 			console.error("[YANA EFRIS] Failed to fetch linked E-Invoice:", error);
-	// 		}
-	// 	}
-	// },
 	company(frm) {
 		if (frm.doc.company) {
 			frappe.call({
@@ -182,6 +177,31 @@ frappe.ui.form.on("Sales Invoice", {
 
 	custom_is_new_customer: function (frm) {
 		frm.set_value("custom_new_customer_tin", "");
+	},
+});
+
+frappe.ui.form.on("Sales Invoice", {
+	refresh(frm) {
+		console.log("[EFRIS] refresh() triggered");
+
+		// Skip EFRIS calls when opening an old Sales Invoice
+		if (!frm.is_new() || frm.doc.docstatus !== 0) {
+			console.log("[EFRIS] Existing/Submitted Sales Invoice → No API calls.");
+			return;
+		}
+
+		if (!frm.doc.items || frm.doc.items.length === 0) {
+			console.log("[EFRIS] No items in the table.");
+			return;
+		}
+
+		// Scan all rows → process only rows not yet fetched
+		frm.doc.items.forEach((row) => {
+			if (!row.__live_stock_fetched) {
+				console.log("[EFRIS] New row detected →", row.item_code);
+				queue_live_stock_call(frm, row);
+			}
+		});
 	},
 });
 

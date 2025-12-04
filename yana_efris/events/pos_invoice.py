@@ -81,7 +81,8 @@ def create_sales_invoice_from_pos(doc, method=None):
                 "account_head": tax.account_head,
                 "rate": tax.rate,
                 "tax_amount": tax.tax_amount,
-                "description": tax.description
+                "description": tax.description,
+                "included_in_print_rate": tax.included_in_print_rate,
             })
 
         frappe.log_error(f"Taxes Added: {len(si.taxes)}", "POS→SI DEBUG Taxes")
@@ -149,12 +150,12 @@ def create_sales_invoice_from_pos(doc, method=None):
         si.submit()
 
         # 5️⃣ AUTO-SUBMIT TO EFRIS
-        try:
-            from uganda_compliance.efris.api_classes.e_invoice import send_to_efris
-            send_to_efris(doc=si)  # Passing frappe Document is valid & recommended
-            frappe.log_error(f"EFRIS Submission Successful → {si.name}", "POS→SI→EFRIS")
-        except Exception:
-            frappe.log_error(f"EFRIS Submission Failed → {frappe.get_traceback()}", "POS→SI→EFRIS ERROR")
+        # try:
+        #     from uganda_compliance.efris.api_classes.e_invoice import send_to_efris
+        #     send_to_efris(doc=si)  # Passing frappe Document is valid & recommended
+        #     frappe.log_error(f"EFRIS Submission Successful → {si.name}", "POS→SI→EFRIS")
+        # except Exception:
+        #     frappe.log_error(f"EFRIS Submission Failed → {frappe.get_traceback()}", "POS→SI→EFRIS ERROR")
 
 
         frappe.log_error(f"SI submitted successfully: {si.name}", "POS→SI SUCCESS")
