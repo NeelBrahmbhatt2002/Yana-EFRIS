@@ -446,120 +446,51 @@ def fetch_live_stock_by_goods_code(goods_code, company=None):
 
     return {"success": True, "live_stock": stock, "efris_item_id": item_id}
 
+@frappe.whitelist()
+def validate_fdn_number(fdn_number, company=None):
+    """
+    Validate Invoice FDN Number using EFRIS Interface Code T108.
+    Returns RAW EFRIS response (no custom formatting).
+    """
 
-def send_stock_reconciliation(doc):
-    purpose = doc.get("purpose")
-    efris_log_info(f"The Selected Stock Reconciliation Purpose is {purpose}")
-    is_efris_count = 0
-    efris_log_info("🔍 DEBUG: Starting EFRIS Stock Reconciliation check...")
-    efris_log_info(f"🔍 DEBUG: Custom fieldname check = custom_efris_reconciliation")
-    for efris_item in doc.get("items", []):
-        item_code = efris_item.get("item_code")
-        is_efris = efris_item.get('custom_efris_reconciliation')
-        all_keys = list(efris_item.as_dict().keys())
-        efris_log_info(f"🔍 DEBUG Item: {item_code}, "
-                       f"EFRIS Field Value: {is_efris}, "
-                       f"Available Keys: {all_keys}")
-        if is_efris:
-            is_efris_count +=1
-            efris_log_info(f"The number of efris Items in Items table is {is_efris_count}")
-    if not is_efris_count:
-        efris_log_info(f"Purchase Receipt List Items are Non EFRIS")
-        return
+    if not fdn_number:
+        return {"error": "FDN Number is required."}
 
-    e_company = doc.get("company")
-    efris_log_info(f"The Company is: {e_company}")
-    # Initialize the dictionary to group items
-    items_map = {}
+    payload = {
+        "invoiceNo": fdn_number
+    }
 
-    for item_stock in doc.get("items", []):
-        if purpose == "Opening Stock":
-            key = doc.name 
-        elif purpose == "Stock Reconciliation":
-            key = (item_stock.get("adjustment_type"))
+    # Call using same pattern as other functions
+    success, response = make_post(
+        interfaceCode="T108",
+        content=payload,
+        company_name=company or frappe.defaults.get_user_default("Company")
+    )
 
-        if key not in items_map:
-            items_map[key] = []
-        items_map[key].append(item_stock)
+    if not success:
+        return {"success": False, "message": response}
+    
+    goods = response.get("goodsDetails", [])
+    seller = response.get("sellerDetails", {})
+    basic = response.get("basicInformation", {})
+    tax_details = response.get("taxDetails", [])
+    summary = response.get("summary", {})
 
-    # Process each group of items based on the grouping key
-    for key, items in items_map.items():
-        efris_log_info(f"Processing items for key: {key}")
+    # 2. Check if all items exist in ERPNext
+    missing_items = []
+    for g in goods:
+        item_code = g.get("itemCode")
+        if not frappe.db.exists("Item", item_code):
+            missing_items.append(item_code)
 
-        item_code = ""
-        goodsCode = ""
-        
-        goodsStockInItem, adjustment_code, supplier,tax_Id, stockIntype, remark = goods_stock_recon_item(items, purpose)
-        
-        # Construct the EFRIS payload based on the purpose
-        if purpose == "Opening Stock":
-            supplierTin=tax_Id if tax_Id else ""
-            goods_Stock_Reconciliation_T131 = goods_Stock_T131_data("101", "", remark,doc.get("posting_date"), stockIntype, "", "", "", "", "", "", "101", goodsStockInItem, supplier, supplierTin)
-        
-        elif purpose == "Stock Reconciliation":
-            if not remark:
-                remark = "Stock Reconciliation"
-            
-            goods_Stock_Reconciliation_T131 = goods_Stock_T131_data("102", adjustment_code, remark,doc.get("posting_date"), "", "", "", "", "", "", "", "101", goodsStockInItem)
+    if missing_items:
+        frappe.throw(f"Items not found in ERPNext: {', '.join(missing_items)}")
 
-        # Make the post request to EFRIS for the current group
-        success, response = make_post(interfaceCode="T131", content=goods_Stock_Reconciliation_T131, company_name=e_company, reference_doc_type=doc.doctype, reference_document=doc.name)
-        child_table="Stock Reconciliation Item"
-        handle_response(success,child_table, response, items, e_company, key)
-
-def goods_stock_recon_item(items, purpose):
-    goodsStockInItem = []
-    adjustment_code = ""
-    supplier = ""
-    tax_Id = ""
-    remark = ""
-    stockIntype = "101"
-    item_code = ""
-    goodsCode = ""
-    for item_stock in items:
-        adjustment_type = item_stock.efris_adjustment_type
-        adjustment_code = adjustment_type.split(":")[0]
-        
-        quantity_variance = str(round(abs(item_stock.quantity_difference),3))
-        remark = item_stock.get("efris_remarks")
-
-        is_efris = item_stock.get("custom_efris_reconciliation")
-        supplier=""
-        if is_efris:
-            item = frappe.get_doc("Item", item_stock.get("item_code"))
-            standard_rate = item.standard_rate or 0
-            item_code = item.item_code
-            goodsCode = item.efris_product_code
-            if goodsCode: 
-                item_code = goodsCode
-            uom_code = frappe.db.get_value('UOM', {'uom_name': item.stock_uom}, 'efris_uom_code') or ''
-            accept_warehouse = item_stock.get("warehouse")
-            if purpose == "Opening Stock":
-                # Fetch purchase receipt details
-                supplier = "Opening Balance"
-                stockIntype = "102"                        
-                tax_Id = ""
-
-            # Skip positive adjustments for Stock Reconciliation
-            if purpose == "Stock Reconciliation" and item_stock.quantity_difference > 0:
-                frappe.msgprint(f"EFRIS cannot adjust positive stock: {item_code}. {item_stock.quantity_difference}")
-                efris_log_error(f"EFRIS cannot adjust positive stock: {item_code}, {item_stock.quantity_difference}")
-                continue
-            goodsStockInItem.append(
-                {
-                    "commodityGoodsId": "",
-                    "goodsCode": item_code,
-                    "measureUnit": uom_code,
-                    "quantity": quantity_variance,
-                    "unitPrice": str(standard_rate),
-                    "remarks": remark if remark else "adjustment",
-                    "fuelTankId": "",
-                    "lossQuantity": "",
-                    "originalQuantity": "",
-                }
-            )
-            efris_log_info(f"Item {item.item_code} added to goodsStockInItem. Total items: {len(goodsStockInItem)}")
-        else:
-            efris_log_info(f"Item not relevant for EFRIS. Skipping this item.")
-            continue
-    return goodsStockInItem, adjustment_code, supplier,tax_Id, stockIntype, remark
+    # Return raw EFRIS response exactly as received
+    return {
+        "seller": seller,
+        "basic": basic,
+        "goods": goods,
+        "tax_details": tax_details,
+        "summary": summary
+    }
