@@ -7,7 +7,7 @@ TRANSACTION_CODES = {
     "Sales Invoice": "SAL",
     "Purchase Invoice": "PUR",
     "Payment Entry": "PAY",
-    "Journal Entry": "REC",
+    # "Journal Entry": "REC",
 }
 
 def _get_next_number(prefix):
