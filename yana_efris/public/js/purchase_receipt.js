@@ -14,10 +14,7 @@ frappe.ui.form.on("Purchase Receipt", {
 				freeze_message: "Fetching invoice from EFRIS...",
 				callback: function (r) {
 					if (!r.exc) {
-						console.log("RAW T108 Response:", r.message);
-
 						const data = r.message;
-						console.log("Actual Response", data);
 
 						// 3. Clear existing items properly
 						frm.doc.items = []; // Hard reset (more reliable)
@@ -31,6 +28,24 @@ frappe.ui.form.on("Purchase Receipt", {
 							child.qty = parseFloat(g.qty);
 							child.rate = parseFloat(g.unitPrice);
 							child.amount = parseFloat(g.total);
+
+							// Fetch UOM from Item Master (THIS IS THE KEY PART)
+							frappe.call({
+								method: "frappe.client.get_value",
+								args: {
+									doctype: "Item",
+									filters: { name: g.itemCode },
+									fieldname: ["stock_uom"],
+								},
+								async: false,
+								callback: function (res) {
+									if (res.message) {
+										child.uom = res.message.stock_uom;
+										child.stock_uom = res.message.stock_uom;
+										frm.refresh_field("items");
+									}
+								},
+							});
 						});
 
 						// 5. Refresh again AFTER adding items
@@ -42,7 +57,7 @@ frappe.ui.form.on("Purchase Receipt", {
 							title: "EFRIS Response",
 							indicator: "blue",
 							message: __(
-								"Invoice fetched successfully. Check console for full response."
+								"Invoice fetched successfully and mapped items automatically."
 							),
 						});
 					}
