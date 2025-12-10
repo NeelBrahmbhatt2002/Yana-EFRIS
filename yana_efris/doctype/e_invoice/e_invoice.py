@@ -171,15 +171,49 @@ def get_tax_details(self):
         tax_details_list.append(tax_details)
 
     # Step 3: Adjust the final tax detail if total differs by rounding
+    # difference = round(total_goods_tax - accumulated_tax, 2)
+    # if abs(difference) > 0:
+    #     efris_log_info(f"Adjusting tax difference: {difference}")
+    #     tax_details_list[-1]["taxAmount"] = round(
+    #         tax_details_list[-1]["taxAmount"] + difference, 2
+    #     )
+    #     tax_details_list[-1]["grossAmount"] = round(
+    #         float(tax_details_list[-1]["grossAmount"]) + difference, 2
+    #     )
+
+    # Step 3: Adjust the final tax detail if total differs by rounding
     difference = round(total_goods_tax - accumulated_tax, 2)
+
     if abs(difference) > 0:
-        efris_log_info(f"Adjusting tax difference: {difference}")
-        tax_details_list[-1]["taxAmount"] = round(
-            tax_details_list[-1]["taxAmount"] + difference, 2
+        efris_log_info(f"Adjusting tax difference safely: {difference}")
+
+        # A: Find a tax row where adjustment makes sense (positive-tax rows first)
+        target_row = None
+        for row in reversed(tax_details_list):
+            if float(row["taxAmount"]) > 0:
+                target_row = row
+                break
+
+        # B: If no positive-tax row exists, fallback to last row (your original behavior)
+        if not target_row:
+            target_row = tax_details_list[-1]
+
+        # C: Apply correction
+        new_tax_amount = round(float(target_row["taxAmount"]) + difference, 2)
+
+        # D: If correction makes tax negative, clamp it to 0.00 (EFRIS rule)
+        if new_tax_amount < 0:
+            efris_log_info(
+                f"Rounded tax correction would turn negative ({new_tax_amount}), forcing to 0.00"
+            )
+            new_tax_amount = 0.00
+
+        # E: Update row
+        target_row["taxAmount"] = new_tax_amount
+        target_row["grossAmount"] = round(
+            float(target_row["netAmount"]) + new_tax_amount, 2
         )
-        tax_details_list[-1]["grossAmount"] = round(
-            float(tax_details_list[-1]["grossAmount"]) + difference, 2
-        )
+
 
     return {"taxDetails": tax_details_list}
 
