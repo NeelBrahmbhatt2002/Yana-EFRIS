@@ -494,3 +494,10 @@ def validate_fdn_number(fdn_number, company=None):
         "tax_details": tax_details,
         "summary": summary
     }
+
+
+def get_efris_product_code(item_code):
+	product_code = frappe.db.get_value("Item", item_code, "item_code")
+	if not product_code:
+		frappe.throw(f"No EFRIS Product Code found for item: {item_code}")
+	return product_code
