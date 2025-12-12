@@ -39,15 +39,9 @@ doc_events = {
     "Sales Invoice": {
         "autoname": "yana_efris.utils.custom_naming.custom_autoname"
     },
-    "Purchase Invoice": {
-        "autoname": "yana_efris.utils.custom_naming.custom_autoname"
-    },
-    "Payment Entry": {
-        "autoname": "yana_efris.utils.custom_naming.custom_autoname"
-    },
-    # "Journal Entry": {
-    #     "autoname": "yana_efris.utils.custom_naming.custom_autoname"
-    # },
+    "*":  {
+        "autoname": "yana_efris.utils.custom_naming.set_manual_name"
+    }
     # "POS Invoice": {
     #     "on_submit": "yana_efris.events.pos_invoice.create_sales_invoice_from_pos"
     # }

@@ -78,3 +78,57 @@ def generate_document_series(doc, mode="pfi"):
 def custom_autoname(doc, method=None):
     """Default autoname hook: Always PFI for new invoices."""
     generate_document_series(doc, mode="pfi")
+
+def set_manual_name(doc, method=None):
+
+    # Skip doctypes that use custom auto naming
+    if doc.doctype in ["Sales Invoice"]:
+        return
+    
+    manual = getattr(doc, "custom_document_name", None)
+
+    if not manual:
+        return
+
+    if not doc.is_new():
+        frappe.throw("Custom Document Name can only be set on new documents before saving.")
+
+    company_abbr = frappe.db.get_value("Company", doc.company, "abbr")
+    if not company_abbr:
+        frappe.throw(f"Company abbreviation not defined for {doc.company}.")
+
+    # Auto uppercase
+    manual = manual.strip().upper()
+
+    # Sanitize
+    safe_name = sanitize(manual)
+
+    # Enforce prefix
+    if not safe_name.startswith(company_abbr.upper()):
+        frappe.throw(
+            f"Document Name must start with company abbreviation '{company_abbr.upper()}'. "
+            "Example: MHS-INV-0001"
+        )
+
+    # Check duplicates
+    if frappe.db.exists(doc.doctype, safe_name):
+        frappe.throw(f"Document name '{safe_name}' already exists. Please choose another.")
+
+    doc.name = safe_name
+
+
+# def sanitize(value):
+#     sanitized = re.sub(r"[^A-Z0-9\-_]", "", value)
+#     if not sanitized:
+#         frappe.throw("Invalid Document Name. Only letters, numbers, dash (-) and underscore (_) are allowed.")
+#     return sanitized
+
+def sanitize(value):
+    # Detect any invalid characters
+    if re.search(r"[^A-Z0-9\-_]", value):
+        frappe.throw("Invalid Document Name. Only letters, numbers, dash (-) and underscore (_) are allowed.")
+
+    # Return unchanged, since it's already valid
+    return value
+
+
