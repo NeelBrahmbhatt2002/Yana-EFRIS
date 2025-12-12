@@ -89,6 +89,30 @@ function queue_live_stock_call(frm, row) {
 }
 
 frappe.ui.form.on("Sales Invoice", {
+	// refresh(frm) {
+	// 	// Add a custom button
+	// 	frm.add_custom_button(
+	// 		__("Check Approval status"),
+	// 		async function () {
+	// 			try {
+	// 				await frappe.call({
+	// 					method: "uganda_compliance.efris.api_classes.e_invoice.confirm_irn_cancellation",
+	// 					args: { sales_invoice: frm.doc },
+	// 					freeze: false,
+	// 					callback: function (r) {
+	// 						if (!r.exc) {
+	// 							frm.reload_doc();
+	// 						}
+	// 						console.log("Approval status", r);
+	// 					},
+	// 				});
+	// 			} catch (error) {
+	// 				console.error(`Error confirming IRN cancellation: ${error}`);
+	// 			}
+	// 		}
+	// 		// Optional group name (creates a dropdown)
+	// 	);
+	// },
 	company(frm) {
 		if (frm.doc.company) {
 			frappe.call({
