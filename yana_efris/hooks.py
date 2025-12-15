@@ -21,6 +21,7 @@ doctype_js = {
 
 app_include_js = [
     "/assets/yana_efris/js/exchange_rate_common.js",
+    # "/assets/yana_efris/js/override_help.js"
 ]
 
 app_include_css = "/assets/yana_efris/css/custom.css"
