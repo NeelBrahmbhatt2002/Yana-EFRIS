@@ -3,3 +3,13 @@
     background-color: yellow !important;
     border-radius: 4px !important;
 }
+
+/* Hide the original ERPNext Help dropdown completely */
+li.dropdown-help {
+    display: none !important;
+}
+
+/* Ensure our new dropdown appears on hover/click */
+#yana-help-dropdown .dropdown-menu {
+    margin-top: 8px;
+}

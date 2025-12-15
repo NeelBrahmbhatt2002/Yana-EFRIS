@@ -5,9 +5,6 @@ import re
 # Transaction codes for SAL invoices
 TRANSACTION_CODES = {
     "Sales Invoice": "SAL",
-    "Purchase Invoice": "PUR",
-    "Payment Entry": "PAY",
-    # "Journal Entry": "REC",
 }
 
 def _get_next_number(prefix):
@@ -49,6 +46,12 @@ def generate_document_series(doc, mode="pfi"):
     company_code = frappe.db.get_value("Company", company, "abbr") or company[:3].upper()
     company_code = company_code.upper()
 
+    manual = getattr(doc, "custom_document_name", None)
+
+    if manual:
+        set_manual_name(doc, manual)
+        return
+
     # -----------------------------------
     # 1️⃣ PFI NAMING SERIES (Proforma)
     # -----------------------------------
@@ -74,16 +77,11 @@ def generate_document_series(doc, mode="pfi"):
         doc.name = f"{prefix}{next_number}"
         return
 
-
 def custom_autoname(doc, method=None):
     """Default autoname hook: Always PFI for new invoices."""
     generate_document_series(doc, mode="pfi")
 
 def set_manual_name(doc, method=None):
-
-    # Skip doctypes that use custom auto naming
-    if doc.doctype in ["Sales Invoice"]:
-        return
     
     manual = getattr(doc, "custom_document_name", None)
 
@@ -91,7 +89,7 @@ def set_manual_name(doc, method=None):
         return
 
     if not doc.is_new():
-        frappe.throw("Custom Document Name can only be set on new documents before saving.")
+        return
 
     company_abbr = frappe.db.get_value("Company", doc.company, "abbr")
     if not company_abbr:
@@ -115,13 +113,6 @@ def set_manual_name(doc, method=None):
         frappe.throw(f"Document name '{safe_name}' already exists. Please choose another.")
 
     doc.name = safe_name
-
-
-# def sanitize(value):
-#     sanitized = re.sub(r"[^A-Z0-9\-_]", "", value)
-#     if not sanitized:
-#         frappe.throw("Invalid Document Name. Only letters, numbers, dash (-) and underscore (_) are allowed.")
-#     return sanitized
 
 def sanitize(value):
     # Detect any invalid characters

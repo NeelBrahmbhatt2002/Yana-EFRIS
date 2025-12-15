@@ -172,11 +172,24 @@ def generate_irn(sales_invoice):
     original_name = sales_invoice.name
     efris_log_info(f"Parsed invoice: {original_name}")
 
-    _temp_doc = frappe.copy_doc(sales_invoice)
-    generate_document_series(_temp_doc, "efris")
-    predicted_sal_reference = _temp_doc.name
+    # ---------------------------------------------------------------
+    # Predict SAL reference ONLY for auto-named invoices
+    # ---------------------------------------------------------------
+    if sales_invoice.custom_document_name:
+        # Manual invoice → do NOT generate SAL
+        predicted_sal_reference = sales_invoice.name
+        efris_log_info(
+            f"[YANA DEBUG] Manual invoice detected. Using existing name as referenceNo: {predicted_sal_reference}"
+        )
+    else:
+        # Auto-named invoice → predict SAL
+        _temp_doc = frappe.copy_doc(sales_invoice)
+        generate_document_series(_temp_doc, "efris")
+        predicted_sal_reference = _temp_doc.name
+        efris_log_info(
+            f"[YANA DEBUG] Auto invoice. Predicted SAL referenceNo: {predicted_sal_reference}"
+        )
 
-    efris_log_info(f"[YANA DEBUG] Predicted next SAL number for referenceNo: {predicted_sal_reference}")
 
     # ---------------------------------------------------------------
     # 1️⃣ Submit to EFRIS FIRST — do NOT rename yet!
@@ -225,8 +238,14 @@ def generate_irn(sales_invoice):
 
         # Generate new SAL name
         
-        generate_document_series(sales_invoice, "efris")
-        new_name = sales_invoice.name
+        # ---------------------------------------------------------------
+        # Rename ONLY auto-named invoices
+        # ---------------------------------------------------------------
+        if not sales_invoice.custom_document_name:
+            generate_document_series(sales_invoice, "efris")
+            new_name = sales_invoice.name
+        else:
+            new_name = original_name
 
         # Rename in DB
         if original_name != new_name:
