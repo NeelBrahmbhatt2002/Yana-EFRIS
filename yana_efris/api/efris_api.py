@@ -520,3 +520,47 @@ def get_efris_product_code(item_code):
 	if not product_code:
 		frappe.throw(f"No EFRIS Product Code found for item: {item_code}")
 	return product_code
+
+@frappe.whitelist()
+def get_sidebar_items():
+    user_roles = set(frappe.get_roles(frappe.session.user))  # Use a set for faster lookups
+    
+    # Prepare sidebar items for user role "System Manager"
+    def get_system_manager_items():
+        return [
+            {
+                "categoryName": _("System Management"), "link": "", "icon": "setting-gear", "items": [
+                    {"label": _("Workflows"), "link": f"/app/workflow", "icon": "workflow", "items": []},
+                    {"label": _("Notifications"), "link": f"/app/notification", "icon": "notification", "items": []},
+                    {"label": _("Client Scripts"), "link": f"/app/client-script", "icon": "small-file", "items": []},
+                    {"label": _("Property Settings"), "link": f"/app/property-setter", "icon": "shortcut", "items": []},
+                    {"label": _("System Settings"), "link": f"/app/system-settings", "icon": "tool", "items": []},
+                    {"label": _("Role Permissions Management"), "link": f"/app/permission-manager", "icon": "permission", "items": []},
+                ]
+            },
+            {
+                "categoryName": _("Logs"), "link": "", "icon": "list-alt", "items": [
+                    {"label": _("Activity Logs"), "link": f"/app/activity-log", "icon": "list-alt", "items": []},
+                    {"label": _("View Logs"), "link": f"/app/view-log", "icon": "list-alt", "items": []},
+                    {"label": _("Access Logs"), "link": f"/app/access-log", "icon": "list-alt", "items": []},
+                    {"label": _("Error Logs"), "link": f"/app/error-log", "icon": "list-alt", "items": []},
+                ]
+            },
+        ]
+        
+    # Map roles to function references directly
+    sidebar_items = {
+        "System Manager": get_system_manager_items,
+    }
+    
+    # If the user has the role "System Manager", return the items for that role
+    if "System Manager" in user_roles:
+        return {"System Manager": sidebar_items["System Manager"]()}
+        
+    # Find the first matching role (assuming each user has only one role)
+    for role in user_roles:
+        if role in sidebar_items:
+            function = sidebar_items[role]  # Get the function reference
+            return {role: function()}  # Call the function directly
+
+    return {}  # Return empty if no matching role is found
