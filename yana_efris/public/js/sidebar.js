@@ -1,5 +1,85 @@
 frappe.provide("custom.sidebar");
 
+function hide_frappe_workspaces() {
+	// Hide only TOP-LEVEL Frappe workspace items
+	$(".standard-sidebar-section")
+		.find(".sidebar-item-container")
+		.filter(function () {
+			const hasParent = $(this).attr("item-parent");
+			const isCustom = $(this).attr("data-custom-sidebar") === "1";
+
+			// Hide only top-level non-custom items
+			return !hasParent && !isCustom;
+		})
+		.hide();
+}
+
+const CUSTOM_MENUS = [
+	{
+		title: "Item Master",
+		icon: "tag",
+		items: [
+			{ label: "Items", link: "/app/item", icon: "" },
+			{ label: "Item Groups", link: "/app/item-group", icon: "" },
+			{ label: "Price List", link: "/app/price-list", icon: "" },
+			{ label: "UOM", link: "/app/uom", icon: "" },
+		],
+	},
+	{
+		title: "Inventory",
+		icon: "stock",
+		items: [
+			{ label: "Stock Ledger", link: "/app/stock-ledger", icon: "" },
+			{ label: "Stock Entry", link: "/app/stock-entry", icon: "" },
+		],
+	},
+	{
+		title: "Sales",
+		icon: "star",
+		items: [
+			{ label: "Customers", link: "/app/customer", icon: "" },
+			{ label: "Quotes", link: "/app/quotation", icon: "" },
+			{ label: "Sales Orders", link: "/app/sales-order", icon: "" },
+			{ label: "Invoices", link: "/app/sales-invoice", icon: "" },
+		],
+	},
+	{
+		title: "Purchases",
+		icon: "buying",
+		items: [
+			{ label: "Suppliers", link: "/app/supplier", icon: "" },
+			{ label: "Purchase Orders", link: "/app/purchase-order", icon: "" },
+			{ label: "Purchase Invoices", link: "/app/purchase-invoice", icon: "" },
+		],
+	},
+	{
+		title: "Accounting",
+		icon: "accounting",
+		items: [
+			{ label: "Journal Entry", link: "/app/journal-entry", icon: "" },
+			{ label: "Chart Of Accounts", link: "/app/account/view/tree", icon: "" },
+			{ label: "Fixed Assets", link: "/app/asset", icon: "" },
+		],
+	},
+	// {
+	// 	title: "Reports",
+	// 	icon: "chart",
+	// 	items: [{ label: "All Reports", link: "/app/reports", icon: "" }],
+	// },
+];
+
+// Checking logic for home route.
+function is_home_route() {
+	const path = window.location.pathname;
+	return path === "/app/home";
+}
+
+// Logic to reset all the dropdowns
+function reset_all_dropdowns() {
+	$(".sidebar-child-item").addClass("hidden");
+	$(".collapse-icon").attr("href", "#es-line-down");
+}
+
 $(document).ready(function () {
 	/* ------------------------------------------------------------
 	 * 1. WAIT UNTIL ERPNext SIDEBAR IS RENDERED
@@ -7,7 +87,7 @@ $(document).ready(function () {
 	function wait_for_sidebar(callback) {
 		const observer = new MutationObserver((mutations, obs) => {
 			const $public_section = $(
-				'div.standard-sidebar-section.nested-container[data-title="Public"]'
+				'div.standard-sidebar-section.nested-container[data-title="Public"]',
 			);
 
 			if ($public_section.length) {
@@ -24,120 +104,216 @@ $(document).ready(function () {
 			e.preventDefault();
 			e.stopPropagation();
 
-			const $container = $(this).closest(".sidebar-item-container");
-			const $children = $container.children(".sidebar-child-item");
+			const $current = $(this).closest(".sidebar-item-container");
+			const $children = $current.children(".sidebar-child-item");
 			const $icon = $(this).find(".collapse-icon");
 
-			$children.toggleClass("hidden");
+			const isOpen = !$children.hasClass("hidden");
 
-			// Toggle arrow
-			if ($children.hasClass("hidden")) {
-				$icon.attr("href", "#es-line-down");
-			} else {
+			// 🔒 CLOSE ALL DROPDOWNS FIRST (Accordion behavior)
+			reset_all_dropdowns();
+
+			// If it was closed, open it
+			if (!isOpen) {
+				$children.removeClass("hidden");
 				$icon.attr("href", "#es-line-up");
 			}
+
+			// if (is_any_dropdown_open()) {
+			// 	$(".sidebar-item-container[item-name='Home']")
+			// 		.find(".desk-sidebar-item")
+			// 		.removeClass("selected");
+			// } else if (is_home_route()) {
+			// 	// All closed + on home → Home active
+			// 	$(".sidebar-item-container[item-name='Home']")
+			// 		.find(".desk-sidebar-item")
+			// 		.addClass("selected");
+			// } else {
+			// 	$(".sidebar-item-container[item-name='Home']")
+			// 		.find(".desk-sidebar-item")
+			// 		.removeClass("selected");
+			// }
 		});
 	}
 
 	/* ------------------------------------------------------------
 	 * 2. CREATE SIDEBAR ITEM HTML (DUMMY)
 	 * ------------------------------------------------------------ */
-	function create_sidebar_item({ label, link, icon }) {
+	function create_sidebar_item(parent, { label, link, icon }) {
 		return `
-        <div class="sidebar-item-container"
-             item-parent="My Custom Menu"
-             item-name="${label}"
-             item-public="1"
-             item-is-hidden="0">
-
-            <div class="desk-sidebar-item standard-sidebar-item">
-                <a href="${link}" class="item-anchor" title="${label}">
-                    <span class="sidebar-item-icon" item-icon="${icon}">
-                        <svg class="icon icon-md">
-                            <use href="#icon-${icon}"></use>
-                        </svg>
-                    </span>
-                    <span class="sidebar-item-label">${label}</span>
-                </a>
-            </div>
-        </div>
-    `;
+	<div class="sidebar-item-container"
+		 item-parent="${parent}"
+		 item-name="${label}"
+		 item-public="1"
+		 item-is-hidden="0">
+		<div class="desk-sidebar-item standard-sidebar-item">
+			<a href="${link}" class="item-anchor" title="${label}">
+				<span class="sidebar-item-icon" item-icon="${icon}">
+					<svg class="icon icon-md">
+						<use href="#icon-${icon}"></use>
+					</svg>
+				</span>
+				<span class="sidebar-item-label">${label}</span>
+			</a>
+		</div>
+	</div>`;
 	}
 
-	/* ------------------------------------------------------------
-	 * 3. CREATE A CUSTOM CATEGORY WITH CHILD LINKS
-	 * ------------------------------------------------------------ */
-	function create_custom_category() {
+	function create_home_link(label, link, icon) {
 		return `
-    <div class="sidebar-item-container is-draggable"
-         data-custom-sidebar="1"
-         item-name="My Custom Menu"
-         item-public="1"
-         item-is-hidden="0">
+	<div class="sidebar-item-container is-draggable"
+		 data-custom-sidebar="1"
+		 item-name="${label}"
+		 item-public="1"
+		 item-is-hidden="0">
 
-        <!-- Parent -->
-        <div class="desk-sidebar-item standard-sidebar-item">
-            <a class="item-anchor" title="My Custom Menu">
-                <span class="sidebar-item-icon" item-icon="star">
-                    <svg class="icon icon-md">
-                        <use href="#icon-star"></use>
-                    </svg>
-                </span>
-                <span class="sidebar-item-label">My Custom Menu</span>
-            </a>
-
-            <!-- Collapse control -->
-            <div class="sidebar-item-control">
-                <button class="btn-reset collapse-btn drop-icon" title="Collapse / Expand">
-                    <svg class="es-icon es-line icon-sm">
-                        <use class="collapse-icon" href="#es-line-down"></use>
-                    </svg>
-                </button>
-            </div>
-        </div>
-
-        <!-- 🔑 CHILD ITEMS MUST BE HIDDEN INITIALLY -->
-        <div class="sidebar-child-item nested-container hidden">
-
-            ${create_sidebar_item({
-				label: "Dummy Page One",
-				link: "/app/todo/new-todo",
-				icon: "edit",
-			})}
-
-            ${create_sidebar_item({
-				label: "Dummy Page Two",
-				link: "/app/user",
-				icon: "users",
-			})}
-
-            ${create_sidebar_item({
-				label: "External Link",
-				link: "https://example.com",
-				icon: "link",
-			})}
-
-        </div>
-    </div>
-    `;
+		<div class="desk-sidebar-item standard-sidebar-item">
+			<a href="${link}" class="item-anchor" title="${label}">
+				<span class="sidebar-item-icon" item-icon="${icon}">
+					<svg class="icon icon-md">
+						<use href="#icon-${icon}"></use>
+					</svg>
+				</span>
+				<span class="sidebar-item-label">${label}</span>
+			</a>
+		</div>
+	</div>`;
 	}
+
+	function create_menu_group(menu) {
+		const children = menu.items.map((item) => create_sidebar_item(menu.title, item)).join("");
+
+		return `
+	<div class="sidebar-item-container is-draggable"
+		 data-custom-sidebar="1"
+		 item-name="${menu.title}"
+		 item-public="1"
+		 item-is-hidden="0">
+
+		<div class="desk-sidebar-item standard-sidebar-item">
+			<a class="item-anchor" title="${menu.title}">
+				<span class="sidebar-item-icon" item-icon="${menu.icon}">
+					<svg class="icon icon-md">
+						<use href="#icon-${menu.icon}"></use>
+					</svg>
+				</span>
+				<span class="sidebar-item-label">${menu.title}</span>
+			</a>
+
+			<div class="sidebar-item-control">
+				<button class="btn-reset collapse-btn drop-icon">
+					<svg class="es-icon es-line icon-sm">
+						<use class="collapse-icon" href="#es-line-down"></use>
+					</svg>
+				</button>
+			</div>
+		</div>
+
+		<div class="sidebar-child-item nested-container hidden">
+			${children}
+		</div>
+	</div>`;
+	}
+
+	function is_any_dropdown_open() {
+		return (
+			$(".sidebar-child-item").filter(function () {
+				return !$(this).hasClass("hidden");
+			}).length > 0
+		);
+	}
+
+	function apply_optional_polishing() {
+		const path = window.location.pathname;
+
+		reset_all_dropdowns();
+		// $(".desk-sidebar-item").removeClass("selected");
+
+		// Highlight Home when active
+		// if (path === "/app/home") {
+		// 	console.log("Pathname is", path);
+		// 	$(".sidebar-item-container[item-name='Home']")
+		// 		.find(".desk-sidebar-item")
+		// 		.addClass("selected");
+		// }
+
+		// Auto-expand parent menu if a child page is active
+		$(".sidebar-item-container[item-parent]").each(function () {
+			const href = $(this).find("a.item-anchor").attr("href");
+			if (href === path) {
+				const parentName = $(this).attr("item-parent");
+				const $parent = $(`.sidebar-item-container[item-name='${parentName}']`);
+				// $(".sidebar-item-container[item-name='Home']")
+				// 	.find(".desk-sidebar-item")
+				// 	.removeClass("selected");
+
+				$parent.find(".sidebar-child-item").removeClass("hidden");
+				$parent.find(".collapse-icon").attr("href", "#es-line-up");
+			}
+		});
+	}
+
+	// function apply_optional_polishing() {
+	// 	frappe.after_ajax(() => {
+	// 		setTimeout(() => {
+	// 			const path = window.location.pathname;
+
+	// 			// Reset
+	// 			reset_all_dropdowns();
+	// 			$(".desk-sidebar-item").removeClass("selected");
+
+	// 			// HOME
+	// 			if (is_home_route()) {
+	// 				$(".sidebar-item-container[item-name='Home']")
+	// 					.find(".desk-sidebar-item")
+	// 					.addClass("selected");
+	// 				return;
+	// 			}
+
+	// 			// CHILD ROUTES
+	// 			$(".sidebar-item-container[item-parent]").each(function () {
+	// 				const $anchor = $(this).find("a.item-anchor");
+	// 				const href = $anchor.attr("href");
+
+	// 				if (href === path) {
+	// 					// Child active
+	// 					$(this).find(".desk-sidebar-item").addClass("selected");
+
+	// 					// Open parent
+	// 					const parentName = $(this).attr("item-parent");
+	// 					const $parent = $(`.sidebar-item-container[item-name='${parentName}']`);
+
+	// 					$parent.find(".sidebar-child-item").removeClass("hidden");
+	// 					$parent.find(".collapse-icon").attr("href", "#es-line-up");
+	// 				}
+	// 			});
+	// 		}, 0);
+	// 	});
+	// }
 
 	/* ------------------------------------------------------------
 	 * 4. INJECT INTO EXISTING SIDEBAR (SAFE)
 	 * ------------------------------------------------------------ */
 	function inject_sidebar_items() {
 		wait_for_sidebar(($public_section) => {
-			// ❌ Prevent duplicate insertions
+			// Prevent duplicates
 			if ($public_section.find('[data-custom-sidebar="1"]').length) {
 				return;
 			}
 
-			const custom_html = create_custom_category();
+			$public_section.append(create_home_link("Home", "/app/home", "dashboard"));
 
-			// ✅ Append at bottom of Public section
-			$public_section.append(custom_html);
+			CUSTOM_MENUS.forEach((menu) => {
+				$public_section.append(create_menu_group(menu));
+			});
+
+			$public_section.append(create_home_link("Reports", "/app/reports", "chart"));
 
 			bind_custom_sidebar_toggle($public_section);
+
+			hide_frappe_workspaces();
+
+			apply_optional_polishing();
 		});
 	}
 
