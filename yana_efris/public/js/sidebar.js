@@ -31,25 +31,29 @@ const CUSTOM_MENUS = [
 		items: [
 			{ label: "Stock Ledger", link: "/app/stock-ledger", icon: "" },
 			{ label: "Stock Entry", link: "/app/stock-entry", icon: "" },
+			{ label: "Inventory Adjustments", link: "/app/stock-reconciliation", icon: "" },
+			{ label: "Packages", link: "/app/package", icon: "" },
+			{ label: "Shipments", link: "/app/shipment", icon: "" },
 		],
 	},
 	{
-		title: "Sales",
+		title: "Purchase",
+		icon: "buying",
+		items: [
+			{ label: "Suppliers", link: "/app/supplier", icon: "" },
+			{ label: "Purchase Orders", link: "/app/purchase-order", icon: "" },
+			{ label: "Purchase Invoices", link: "/app/purchase-invoice", icon: "" },
+		],
+	},
+	{
+		title: "Sale",
 		icon: "star",
 		items: [
 			{ label: "Customers", link: "/app/customer", icon: "" },
 			{ label: "Quotes", link: "/app/quotation", icon: "" },
 			{ label: "Sales Orders", link: "/app/sales-order", icon: "" },
 			{ label: "Invoices", link: "/app/sales-invoice", icon: "" },
-		],
-	},
-	{
-		title: "Purchases",
-		icon: "buying",
-		items: [
-			{ label: "Suppliers", link: "/app/supplier", icon: "" },
-			{ label: "Purchase Orders", link: "/app/purchase-order", icon: "" },
-			{ label: "Purchase Invoices", link: "/app/purchase-invoice", icon: "" },
+			{ label: "Payments Received", link: "/app/payment-entry", icon: "" },
 		],
 	},
 	{
@@ -307,6 +311,7 @@ $(document).ready(function () {
 				$public_section.append(create_menu_group(menu));
 			});
 
+			$public_section.append(create_home_link("Assets", "/app/assets", "assets"));
 			$public_section.append(create_home_link("Reports", "/app/reports", "chart"));
 
 			bind_custom_sidebar_toggle($public_section);
