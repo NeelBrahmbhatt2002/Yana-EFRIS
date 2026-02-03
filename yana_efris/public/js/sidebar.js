@@ -62,14 +62,100 @@ const CUSTOM_MENUS = [
 		items: [
 			{ label: "Journal Entry", link: "/app/journal-entry", icon: "" },
 			{ label: "Chart Of Accounts", link: "/app/account/view/tree", icon: "" },
-			{ label: "Fixed Assets", link: "/app/asset", icon: "" },
 		],
 	},
-	// {
-	// 	title: "Reports",
-	// 	icon: "chart",
-	// 	items: [{ label: "All Reports", link: "/app/reports", icon: "" }],
-	// },
+	{
+		title: "Costing",
+		icon: "expenses",
+		items: [
+			{ label: "Chart of Cost Centers", link: "/app/cost-center", icon: "" },
+			{ label: "Budget", link: "/app/budget", icon: "" },
+			{ label: "Accounting Dimension", link: "/app/accounting-dimension", icon: "" },
+			{ label: "Cost Center Allocation", link: "/app/cost-center-allocation", icon: "" },
+			{
+				label: "Budget Variance Report",
+				link: "/app/query-report/Budget Variance Report",
+				icon: "",
+			},
+			{ label: "Monthly Distribution", link: "/app/monthly-distribution", icon: "" },
+		],
+	},
+	{
+		title: "Banking",
+		icon: "income",
+		items: [
+			{ label: "Bank", link: "/app/bank", icon: "" },
+			{ label: "Bank Account", link: "/app/bank-account", icon: "" },
+			{ label: "Bank Clearance", link: "/app/bank-clearance", icon: "" },
+			{ label: "Bank Reconciliation Tool", link: "/app/bank-reconciliation-tool", icon: "" },
+			{
+				label: "Bank Reconciliation Statement",
+				link: "/app/query-report/Bank Reconciliation Statement",
+				icon: "",
+			},
+			{ label: "Plaid Settings", link: "/app/plaid-settings", icon: "" },
+		],
+	},
+	{
+		title: "Multi Currency",
+		icon: "workflow",
+		items: [
+			{ label: "Currency", link: "/app/currency", icon: "" },
+			{ label: "Currency Exchange", link: "/app/currency-exchange", icon: "" },
+			{
+				label: "Exchange Rate Revaluation",
+				link: "/app/exchange-rate-revaluation",
+				icon: "",
+			},
+		],
+	},
+];
+
+const CUSTOM_MENUS_1 = [
+	{
+		title: "Manufacturing",
+		icon: "organization",
+		items: [
+			{ label: "Work Order", link: "/app/work-order", icon: "" },
+			{ label: "Production Plan", link: "/app/production-plan", icon: "" },
+			{ label: "Stock Entry", link: "/app/stock-entry", icon: "" },
+			{ label: "Job Card", link: "/app/job-card", icon: "" },
+			{ label: "Downtime Entry", link: "/app/downtime-entry", icon: "" },
+		],
+	},
+	{
+		title: "CRM",
+		icon: "crm",
+		items: [
+			{ label: "Lead", link: "/app/lead", icon: "" },
+			{ label: "Opportunity", link: "/app/opportunity", icon: "" },
+			{ label: "Customer", link: "/app/customer", icon: "" },
+			{ label: "Contract", link: "/app/contract", icon: "" },
+			{ label: "Appointment", link: "/app/appointment", icon: "" },
+			{ label: "Newsletter", link: "/app/newsletter", icon: "" },
+			{ label: "Communication", link: "/app/communication", icon: "" },
+		],
+	},
+	{
+		title: "Projects",
+		icon: "project",
+		items: [
+			{ label: "Project", link: "/app/project", icon: "" },
+			{ label: "Task", link: "/app/task", icon: "" },
+			{ label: "Project Template", link: "/app/project-template", icon: "" },
+			{ label: "Project Type", link: "/app/project-type", icon: "" },
+			{ label: "Project Update", link: "/app/project-update", icon: "" },
+		],
+	},
+	{
+		title: "Subscription Management",
+		icon: "tag",
+		items: [
+			{ label: "Subscription Plan", link: "/app/subscription-plan", icon: "" },
+			{ label: "Subscription", link: "/app/subscription", icon: "" },
+			{ label: "Subscription Settings", link: "/app/subscription-settings", icon: "" },
+		],
+	},
 ];
 
 // Checking logic for home route.
@@ -257,44 +343,6 @@ $(document).ready(function () {
 		});
 	}
 
-	// function apply_optional_polishing() {
-	// 	frappe.after_ajax(() => {
-	// 		setTimeout(() => {
-	// 			const path = window.location.pathname;
-
-	// 			// Reset
-	// 			reset_all_dropdowns();
-	// 			$(".desk-sidebar-item").removeClass("selected");
-
-	// 			// HOME
-	// 			if (is_home_route()) {
-	// 				$(".sidebar-item-container[item-name='Home']")
-	// 					.find(".desk-sidebar-item")
-	// 					.addClass("selected");
-	// 				return;
-	// 			}
-
-	// 			// CHILD ROUTES
-	// 			$(".sidebar-item-container[item-parent]").each(function () {
-	// 				const $anchor = $(this).find("a.item-anchor");
-	// 				const href = $anchor.attr("href");
-
-	// 				if (href === path) {
-	// 					// Child active
-	// 					$(this).find(".desk-sidebar-item").addClass("selected");
-
-	// 					// Open parent
-	// 					const parentName = $(this).attr("item-parent");
-	// 					const $parent = $(`.sidebar-item-container[item-name='${parentName}']`);
-
-	// 					$parent.find(".sidebar-child-item").removeClass("hidden");
-	// 					$parent.find(".collapse-icon").attr("href", "#es-line-up");
-	// 				}
-	// 			});
-	// 		}, 0);
-	// 	});
-	// }
-
 	/* ------------------------------------------------------------
 	 * 4. INJECT INTO EXISTING SIDEBAR (SAFE)
 	 * ------------------------------------------------------------ */
@@ -312,7 +360,14 @@ $(document).ready(function () {
 			});
 
 			$public_section.append(create_home_link("Assets", "/app/assets", "assets"));
+
+			CUSTOM_MENUS_1.forEach((menu) => {
+				$public_section.append(create_menu_group(menu));
+			});
+
 			$public_section.append(create_home_link("Reports", "/app/reports", "chart"));
+
+			$public_section.append(create_home_link("Utilities", "/app/tools", "tool"));
 
 			bind_custom_sidebar_toggle($public_section);
 
