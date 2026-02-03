@@ -171,6 +171,7 @@ function reset_all_dropdowns() {
 }
 
 $(document).ready(function () {
+	console.log("This console should work");
 	/* ------------------------------------------------------------
 	 * 1. WAIT UNTIL ERPNext SIDEBAR IS RENDERED
 	 * ------------------------------------------------------------ */
