@@ -365,7 +365,7 @@ $(document).ready(function () {
 				$public_section.append(create_menu_group(menu));
 			});
 
-			$public_section.append(create_home_link("Reports", "/app/reports", "chart"));
+			$public_section.append(create_home_link("All Reports", "/app/reports", "chart"));
 
 			$public_section.append(create_home_link("Utilities", "/app/tools", "tool"));
 
