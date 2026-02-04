@@ -1,4 +1,4 @@
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 from yana_efris.api import efris_api
 from uganda_compliance.efris.doctype.e_invoice import e_invoice as original_doceinvoice

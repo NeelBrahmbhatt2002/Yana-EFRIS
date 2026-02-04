@@ -15,6 +15,10 @@ from frappe.defaults import get_user_default
 
 
 def execute(filters=None):
+	frappe.log_error(
+        f"Custom Report code running",
+        "Custom Report"
+    )
 	if not filters:
 		filters = {}
 
