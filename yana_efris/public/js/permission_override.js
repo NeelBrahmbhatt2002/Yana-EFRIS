@@ -23,7 +23,7 @@ frappe.after_ajax(function () {
 				message_text.includes("does not have doctype access") ||
 				message_text.includes("No permission for") ||
 				message_text.includes("Not permitted") ||
-				message_text.includes("Page not found") ||
+				message_text.toLowerCase().includes("not found") ||
 				message_text.includes("The resource you are looking for is not available")
 			) {
 				// 🔥 Prevent duplicate popup within 1 second
