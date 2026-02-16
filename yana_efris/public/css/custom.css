@@ -17,3 +17,209 @@ li.dropdown-help {
 .green-stat{
     color: #31835b !important;
 }
+
+/* ================================
+   YanaERP – Dark Blue Theme
+================================ */
+
+html[data-theme="dark"] {
+  /* Base backgrounds */
+  --yana-bg-main: #020617;       /* very dark blue */
+  --yana-bg-card: #020617;       /* card surfaces */
+  --yana-bg-sidebar: #020617;    /* sidebar (darkest) */
+
+  /* Text */
+  --yana-text-primary: #f8fafc;  /* white */
+  --yana-text-muted: #94a3b8;    /* soft blue-grey */
+
+  /* Borders & dividers */
+  --yana-border: #020617;
+
+  /* Brand accent */
+  --yana-accent: #3b82f6;        /* blue-500 */
+  --yana-accent-soft: #60a5fa;   /* hover / highlights */
+
+  /* Form surfaces */
+  /* --control-bg: #0f172a;
+  --control-bg-on-gray: #0f172a;
+  --input-bg: #0f172a; */
+
+  --input-bg: #111827;
+  --control-bg: #111827;
+  --control-bg-on-gray: #111827;
+
+  /* Borders */
+  --border-color: #1e293b;
+
+  /* Text */
+  --text-color: #f8fafc;
+  --text-muted: #94a3b8;
+
+  /* Focus */
+  --focus-color: #3b82f6;
+}
+
+html[data-theme="dark"] body {
+  /* background-color: var(--yana-bg-main) !important; */
+  /* color: var(--yana-text-primary) !important; */
+}
+
+html[data-theme="dark"] .layout-main {
+  background-color: var(--yana-bg-main) !important;
+}
+
+html[data-theme="dark"] .desk-sidebar,
+html[data-theme="dark"] .desk-sidebar * {
+  color: #f8fafc !important; 
+}
+
+html[data-theme="dark"] .standard-sidebar-item
+.sidebar-item-icon[item-icon="star"] svg {
+  stroke: #3b82f6 !important;
+}
+
+html[data-theme="dark"] .standard-sidebar-item {
+  border-radius: 8px;
+  margin: 2px 6px;
+  padding: 8px 12px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+
+html[data-theme="dark"] .standard-sidebar-item {
+  color: #e5e7eb !important; /* slightly soft white */
+}
+
+/* html[data-theme="dark"] .standard-sidebar-item:hover {
+  background-color: rgba(59, 130, 246, 0.12);
+  color: #ffffff !important;
+} */
+
+html[data-theme="dark"] .standard-sidebar-item:hover {
+  background: linear-gradient(
+    90deg,
+    rgba(59, 130, 246, 0.18),
+    rgba(59, 130, 246, 0.05)
+  );
+  color: #ffffff !important;
+}
+
+
+/* html[data-theme="dark"] .standard-sidebar-item.selected {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+  color: #ffffff !important;
+} */
+
+html[data-theme="dark"] .standard-sidebar-item.selected {
+  background: linear-gradient(
+    90deg,
+    rgba(59, 130, 246, 0.35),
+    rgba(59, 130, 246, 0.12)
+  ) !important;
+
+  color: #ffffff !important;
+  box-shadow: inset 3px 0 0 #3b82f6;
+}
+
+
+html[data-theme="dark"] .sidebar-group-title,
+html[data-theme="dark"] .standard-sidebar-label {
+  color: #f8fafc !important;
+  font-weight: 600;
+}
+
+html[data-theme="dark"] .desk-sidebar svg {
+  filter: drop-shadow(0 0 2px rgba(59, 130, 246, 0.25));
+}
+
+
+
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .widget,
+html[data-theme="dark"] .frappe-card {
+  background-color: var(--yana-bg-card) !important;
+  border: 1px solid var(--yana-border);
+  color: var(--yana-text-primary);
+}
+
+html[data-theme="dark"] .onboarding-widget-box {
+  background: linear-gradient(
+    135deg,
+    #020617,
+    #020617
+  ) !important;
+  border-radius: 12px;
+  border: 1px solid var(--yana-border);
+}
+
+html[data-theme="dark"] .btn-primary {
+  background-color: var(--yana-accent) !important;
+  border-color: var(--yana-accent) !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="dark"] .btn-primary:hover {
+  background-color: #2563eb !important;
+}
+
+html[data-theme="dark"] .btn-secondary {
+  background-color: transparent;
+  border-color: var(--yana-border);
+  color: var(--yana-text-primary);
+}
+
+/* html[data-theme="dark"] input,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select {
+  background-color: #020617;
+  border-color: var(--yana-border);
+  color: var(--yana-text-primary);
+} */
+
+html[data-theme="dark"] input,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select,
+html[data-theme="dark"] .form-control {
+  /* background-color: var(--input-bg) !important;
+  color: var(--text-color) !important;
+  border: 1px solid var(--border-color) !important; */
+  background-color: #111827 !important;
+  color: #f8fafc !important;
+  border: 1px solid #1f2937 !important;
+}
+
+html[data-theme="dark"] .control-label,
+html[data-theme="dark"] label {
+  color: var(--text-color) !important;
+}
+
+html[data-theme="dark"] .form-control[readonly] {
+  /* background-color: #020617 !important; */
+  color: #94a3b8 !important;
+}
+
+html[data-theme="dark"] .select2-dropdown,
+html[data-theme="dark"] .awesomplete ul {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+
+html[data-theme="dark"] input:focus,
+html[data-theme="dark"] textarea:focus,
+html[data-theme="dark"] select:focus {
+  border-color: var(--yana-accent);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.5);
+}
+
+html[data-theme="dark"] .datatable,
+html[data-theme="dark"] .datatable-row {
+  background-color: var(--yana-bg-card);
+  color: var(--yana-text-primary);
+}
+
+html[data-theme="dark"] .datatable-row:hover {
+  background-color: rgba(59, 130, 246, 0.08);
+}
+
+

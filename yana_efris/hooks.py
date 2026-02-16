@@ -23,7 +23,8 @@ app_include_js = [
     "/assets/yana_efris/js/exchange_rate_common.js",
     # "/assets/yana_efris/js/report_auto_company.js",
     "/assets/yana_efris/js/sidebar.js",
-    "/assets/yana_efris/js/open_doctype_new_tab.js"
+    "/assets/yana_efris/js/open_doctype_new_tab.js",
+    "/assets/yana_efris/js/permission_override.js"
     # "/assets/yana_efris/js/override_help.js"
 ]
 
