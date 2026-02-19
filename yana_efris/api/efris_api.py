@@ -662,7 +662,11 @@ def get_items(start, page_length, item_group, pos_profile, search_term=""):
 
     for item in items_data:
 
-        item.actual_qty, _ = get_stock_availability(item.item_code, warehouse)
+        # item.actual_qty, _ = get_stock_availability(item.item_code, warehouse)
+        item.actual_qty, _, is_negative_stock_allowed = get_stock_availability(
+            item.item_code, warehouse
+        )
+
 
         item_prices = frappe.get_all(
             "Item Price",
