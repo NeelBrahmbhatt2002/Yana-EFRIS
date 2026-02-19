@@ -65,6 +65,12 @@ doc_events = {
 #     # "uganda_compliance.efris.api_classes.e_invoice.generate_irn": "yana_efris.api.efris_api.generate_irn"
 # }
 
+override_whitelisted_methods = {
+    "erpnext.selling.page.point_of_sale.point_of_sale.get_items":
+        "yana_efris.api.efris_api.get_items"
+}
+
+
 
 
 
