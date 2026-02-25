@@ -222,4 +222,6 @@ html[data-theme="dark"] .datatable-row:hover {
   background-color: rgba(59, 130, 246, 0.08);
 }
 
-
+li.chat-navbar-icon img {
+    content: url("/assets/yana_efris/icons/chat.png");
+}

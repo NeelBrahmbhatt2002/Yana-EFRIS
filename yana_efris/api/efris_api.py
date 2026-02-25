@@ -730,3 +730,40 @@ def get_items(start, page_length, item_group, pos_profile, search_term=""):
         )
 
     return {"items": result}
+
+@frappe.whitelist()
+def get_files_in_folder(folder: str, start: int = 0, page_length: int = 20) -> dict:
+
+    current_user = frappe.session.user
+
+    # Get attachment folder (only if belongs to user)
+    attachment_folder = frappe.db.get_value(
+        "File",
+        {
+            "file_url": "Home/Attachments",
+            "owner": current_user
+        },
+        ["name", "file_name", "file_url", "is_folder", "modified"],
+        as_dict=1,
+    )
+
+    # Only fetch files owned by logged-in user
+    files = frappe.get_list(
+        "File",
+        {
+            "folder": folder,
+            "owner": current_user
+        },
+        ["name", "file_name", "file_url", "is_folder", "modified"],
+        start=start,
+        page_length=page_length + 1,
+    )
+
+    # Insert user’s attachment folder if needed
+    if folder == "Home" and attachment_folder and attachment_folder not in files:
+        files.insert(0, attachment_folder)
+
+    return {
+        "files": files[:page_length],
+        "has_more": len(files) > page_length
+    }
