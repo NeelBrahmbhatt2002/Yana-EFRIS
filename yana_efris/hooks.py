@@ -60,8 +60,8 @@ doc_events = {
 # yana_efris/hooks.py
 
 override_whitelisted_methods = {
-    # "clefincode_chat.api.api_1_3_3.api.get_contacts": "yana_efris.overrides.chat_contacts.get_contacts",
-    # "clefincode_chat.api.api_1_2_1.api.get_contacts_for_new_group": "yana_efris.overrides.chat_contacts.get_contacts_for_new_group",
+    "clefincode_chat.api.api_1_3_3.api.get_contacts": "yana_efris.overrides.chat_contacts.get_contacts",
+    "clefincode_chat.api.api_1_2_1.api.get_contacts_for_new_group": "yana_efris.overrides.chat_contacts.get_contacts_for_new_group",
     "erpnext.selling.page.point_of_sale.point_of_sale.get_items":
         "yana_efris.api.efris_api.get_items",
         "frappe.core.api.file.get_files_in_folder":
