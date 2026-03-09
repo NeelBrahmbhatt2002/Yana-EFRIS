@@ -1,6 +1,6 @@
 import frappe
 from frappe import _
-from frappe.utils import today
+from frappe.utils import today, getdate
 from uganda_compliance.efris.api_classes.e_invoice import EInvoiceAPI
 from uganda_compliance.efris.api_classes.efris_api import make_post
 from uganda_compliance.efris.utils.utils import efris_log_info, efris_log_error
@@ -766,4 +766,68 @@ def get_files_in_folder(folder: str, start: int = 0, page_length: int = 20) -> d
     return {
         "files": files[:page_length],
         "has_more": len(files) > page_length
+    }
+
+@frappe.whitelist()
+def get_customer_credit_summary(customer, company):
+
+    invoices = frappe.db.sql("""
+        SELECT name, outstanding_amount, due_date
+        FROM `tabSales Invoice`
+        WHERE customer = %s
+        AND company = %s
+        AND docstatus = 1
+        AND outstanding_amount > 0
+    """, (customer, company), as_dict=True)
+
+    outstanding = 0
+    overdue_count = 0
+    oldest_days = 0
+
+    for inv in invoices:
+        outstanding += inv.outstanding_amount
+
+        if inv.due_date and getdate(inv.due_date) < getdate(today()):
+            overdue_count += 1
+            days = (getdate(today()) - getdate(inv.due_date)).days
+
+            if days > oldest_days:
+                oldest_days = days
+
+    return {
+        "outstanding": outstanding,
+        "overdue_count": overdue_count,
+        "oldest_days": oldest_days
+    }
+
+@frappe.whitelist()
+def get_supplier_payable_summary(supplier, company):
+
+    invoices = frappe.db.sql("""
+        SELECT outstanding_amount, due_date
+        FROM `tabPurchase Invoice`
+        WHERE supplier = %s
+        AND company = %s
+        AND docstatus = 1
+        AND outstanding_amount > 0
+    """, (supplier, company), as_dict=True)
+
+    outstanding = 0
+    overdue_count = 0
+    oldest_days = 0
+
+    for inv in invoices:
+        outstanding += inv.outstanding_amount
+
+        if inv.due_date and getdate(inv.due_date) < getdate(today()):
+            overdue_count += 1
+
+            days = (getdate(today()) - getdate(inv.due_date)).days
+            if days > oldest_days:
+                oldest_days = days
+
+    return {
+        "outstanding": outstanding,
+        "overdue_count": overdue_count,
+        "oldest_days": oldest_days
     }
