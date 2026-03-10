@@ -61,7 +61,7 @@ function queue_live_stock_call(frm, row) {
 							row.doctype,
 							row.name,
 							"custom_efris_live_stock",
-							r.message.live_stock
+							r.message.live_stock,
 						);
 
 						frappe.show_alert({
@@ -117,10 +117,38 @@ frappe.ui.form.on("Sales Invoice", {
 					} catch (error) {
 						console.error(`Error validating invoice: ${error}`);
 					}
-				}
+				},
 				// Optional group name (creates a dropdown)
 			);
 		}
+	},
+	customer: function (frm) {
+		if (!frm.doc.customer) return;
+
+		frappe.call({
+			method: "yana_efris.api.efris_api.get_customer_credit_summary",
+			args: {
+				customer: frm.doc.customer,
+				company: frm.doc.company,
+			},
+			callback: function (r) {
+				if (!r.message) return;
+
+				let data = r.message;
+
+				frm.set_value("custom_customer_outstanding_amount", data.outstanding);
+
+				frappe.msgprint({
+					title: "Customer Credit Information",
+					indicator: data.overdue_count > 0 ? "red" : "green",
+					message: `
+                        <b>Outstanding Amount:</b> ${format_currency(data.outstanding)} <br>
+                        <b>Overdue Invoices:</b> ${data.overdue_count} <br>
+                        <b>Oldest Overdue:</b> ${data.oldest_days} days
+                    `,
+				});
+			},
+		});
 	},
 	company(frm) {
 		if (frm.doc.company) {
@@ -197,7 +225,7 @@ frappe.ui.form.on("Sales Invoice", {
 								error: function (err) {
 									console.error("❌ API Error:", err);
 									frappe.msgprint(
-										"Failed to fetch customer details from EFRIS."
+										"Failed to fetch customer details from EFRIS.",
 									);
 								},
 							});
