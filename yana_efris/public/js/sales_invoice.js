@@ -142,10 +142,10 @@ frappe.ui.form.on("Sales Invoice", {
 					title: "Customer Credit Information",
 					indicator: data.overdue_count > 0 ? "red" : "green",
 					message: `
-                        <b>Outstanding Amount:</b> ${format_currency(data.outstanding)} <br>
-                        <b>Overdue Invoices:</b> ${data.overdue_count} <br>
-                        <b>Oldest Overdue:</b> ${data.oldest_days} days
-                    `,
+	                    <b>Outstanding Amount:</b> ${format_currency(data.outstanding)} <br>
+	                    <b>Overdue Invoices:</b> ${data.overdue_count} <br>
+	                    <b>Oldest Overdue:</b> ${data.oldest_days} days
+	                `,
 				});
 			},
 		});
@@ -183,6 +183,7 @@ frappe.ui.form.on("Sales Invoice", {
 			return;
 		}
 		frappe.db.get_value("Customer", { tax_id: tin }, "name").then((r) => {
+			console.log("Customer lookup result:", r);
 			if (r?.message?.name) {
 				frm.set_value("customer", r.message.name);
 				frappe.msgprint("Customer already exists!");
@@ -219,7 +220,7 @@ frappe.ui.form.on("Sales Invoice", {
 								callback: function (r) {
 									if (r.message) {
 										frm.set_value("customer", r.message.customer_id);
-										frappe.msgprint("Customer details fetched successfully!");
+										frappe.msgprint(r.message.message);
 									}
 								},
 								error: function (err) {

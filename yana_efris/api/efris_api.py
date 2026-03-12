@@ -377,7 +377,7 @@ def query_customer_details(doc, e_company_name, tax_id, ninBrn,accountManager):
     if existing:
         return {
             "customer_name": existing,
-            "message": "Existing customer returned."
+            "message": "Existing customer found."
         }
 
     # 5️⃣ Create new Customer
