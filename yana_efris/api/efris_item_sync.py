@@ -277,6 +277,23 @@ def fetch_efris_items_page(company_name: str, page_no: int, page_size: int):
     frappe.log_error(f"T127 page response page={page_no} got={len(records)} page_info={page_info}", "Page Skip Debug")
     return records, page_info
 
+warehouse_cache = {}
+
+def get_company_store_warehouse(company,abbr):
+    if company in warehouse_cache:
+        return warehouse_cache[company]
+
+    # abbr = frappe.db.get_value("Company", company, "abbr")
+
+    warehouse = frappe.db.get_value(
+        "Warehouse",
+        {"name": f"Stores - {abbr}", "company": company},
+        "name"
+    )
+
+    warehouse_cache[company] = warehouse
+    return warehouse
+
 # ─────────────────────────────────────────────────────
 # Create item (minimal fields; safe duplicate check)
 # ─────────────────────────────────────────────────────
@@ -311,6 +328,24 @@ def create_simple_item(rec, company_name):
     # 3️⃣ Fetch Company Abbreviation
     # ----------------------------------------------------------------------
     company_abbr = frappe.db.get_value("Company", company_name, "abbr")
+
+    # ----------------------------------------------------------------------
+    # Fetch Default Warehouse for Company (Stores - {abbr})
+    # ----------------------------------------------------------------------
+    default_warehouse = get_company_store_warehouse(company_name,company_abbr)
+
+    if not default_warehouse:
+        frappe.log_error(
+            f"⚠️ Warehouse not found: Stores - {company_abbr}",
+            "Page Skip Debug"
+        )
+    else:
+        frappe.log_error(
+            f"✔ Default warehouse detected: {default_warehouse}",
+            "Page Skip Debug"
+        )
+
+    
     frappe.log_error(
         f"company_abbr lookup: company={company_name}, abbr={company_abbr}",
         "Page Skip Debug"
@@ -512,6 +547,27 @@ def create_simple_item(rec, company_name):
             f"✔ Added Item Tax Template {template}",
             "Page Skip Debug"
         )
+    
+    # ----------------------------------------------------------------------
+    # Add Item Default Warehouse
+    # ----------------------------------------------------------------------
+    if default_warehouse:
+        try:
+            item.append("item_defaults", {
+                "company": company_name,
+                "default_warehouse": default_warehouse
+            })
+
+            frappe.log_error(
+                f"✔ Item Default added: company={company_name}, warehouse={default_warehouse}",
+                "Page Skip Debug"
+            )
+
+        except Exception as ex:
+            frappe.log_error(
+                f"❌ Failed to add Item Default row: {ex}",
+                "Page Skip Debug"
+            )
 
     # ----------------------------------------------------------------------
     # 1️⃣1️⃣ Insert Item
