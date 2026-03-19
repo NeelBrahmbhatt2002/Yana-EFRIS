@@ -112,7 +112,7 @@ const CUSTOM_MENUS = [
 	},
 ];
 
-const CUSTOM_MENUS_1 = [
+const CUSTOM_MENUS_2 = [
 	{
 		title: "Manufacturing",
 		icon: "organization",
@@ -124,6 +124,9 @@ const CUSTOM_MENUS_1 = [
 			{ label: "Downtime Entry", link: "/app/downtime-entry", icon: "" },
 		],
 	},
+];
+
+const CUSTOM_MENUS_1 = [
 	{
 		title: "CRM",
 		icon: "crm",
@@ -362,6 +365,14 @@ $(document).ready(function () {
 			});
 
 			$public_section.append(create_home_link("Assets", "/app/assets", "assets"));
+
+			CUSTOM_MENUS_2.forEach((menu) => {
+				$public_section.append(create_menu_group(menu));
+			});
+
+			$public_section.append(create_home_link("HR", "/app/hr", "hr"));
+
+			$public_section.append(create_home_link("Payroll", "/app/payroll", "money-coins-1"));
 
 			CUSTOM_MENUS_1.forEach((menu) => {
 				$public_section.append(create_menu_group(menu));
