@@ -225,3 +225,22 @@ html[data-theme="dark"] .datatable-row:hover {
 li.chat-navbar-icon img {
     content: url("/assets/yana_efris/icons/live-chat.png");
 }
+
+ul#navbar-breadcrumbs{
+  display: none !important;
+}
+
+.frappe-control .control-label.reqd::after {
+    color: #ff3b3b !important;
+    font-weight: bold;
+    text-shadow: 0 0 3px rgba(255, 59, 59, 0.6);
+    content: " *";
+    white-space: nowrap;
+}
+
+.grid-heading-row .grid-static-col .static-area.reqd::after {
+  content: " *";
+  color: #ff3b3b !important;
+  font-weight: bold;
+  text-shadow: 0 0 3px rgba(255, 59, 59, 0.6);  
+}

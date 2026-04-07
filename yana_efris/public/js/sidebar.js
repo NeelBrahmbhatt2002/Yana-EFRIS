@@ -54,9 +54,11 @@ const CUSTOM_MENUS = [
 			{ label: "Quotes", link: "/app/quotation", icon: "" },
 			{ label: "Sales Orders", link: "/app/sales-order", icon: "" },
 			{ label: "Invoices", link: "/app/sales-invoice", icon: "" },
-			{ label: "Payments Received", link: "/app/payment-entry", icon: "" },
 		],
 	},
+];
+
+const CUSTOM_MENUS_2 = [
 	{
 		title: "Accounting",
 		icon: "accounting",
@@ -94,7 +96,6 @@ const CUSTOM_MENUS = [
 				link: "/app/query-report/Bank Reconciliation Statement",
 				icon: "",
 			},
-			{ label: "Plaid Settings", link: "/app/plaid-settings", icon: "" },
 		],
 	},
 	{
@@ -110,9 +111,6 @@ const CUSTOM_MENUS = [
 			},
 		],
 	},
-];
-
-const CUSTOM_MENUS_2 = [
 	{
 		title: "Manufacturing",
 		icon: "organization",
@@ -364,11 +362,15 @@ $(document).ready(function () {
 				$public_section.append(create_menu_group(menu));
 			});
 
-			$public_section.append(create_home_link("Assets", "/app/assets", "assets"));
+			$public_section.append(
+				create_home_link("Payments", "/app/payment-entry", "number-card"),
+			);
 
 			CUSTOM_MENUS_2.forEach((menu) => {
 				$public_section.append(create_menu_group(menu));
 			});
+
+			$public_section.append(create_home_link("Assets", "/app/assets", "assets"));
 
 			$public_section.append(create_home_link("HR", "/app/hr", "hr"));
 

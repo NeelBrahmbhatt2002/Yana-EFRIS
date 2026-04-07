@@ -24,7 +24,8 @@ app_include_js = [
     # "/assets/yana_efris/js/report_auto_company.js",
     "/assets/yana_efris/js/sidebar.js?v=2",
     "/assets/yana_efris/js/open_doctype_new_tab.js",
-    "/assets/yana_efris/js/permission_override.js"
+    "/assets/yana_efris/js/permission_override.js",
+    "/assets/yana_efris/js/bank_reconciliation_tool.js",
     # "/assets/yana_efris/js/override_help.js"
 ]
 
@@ -33,7 +34,6 @@ app_include_js = [
 app_include_css = [
     "/assets/yana_efris/css/custom.css?v=0.0.5"
 ]
-
 
 doctype_list_js = {
     "Item": "public/js/item_list.js"
@@ -47,14 +47,14 @@ fixtures = [
 
 doc_events = {
     "Sales Invoice": {
-        "autoname": "yana_efris.utils.custom_naming.custom_autoname"
+        "autoname": "yana_efris.utils.custom_naming.custom_autoname",
     },
     "*":  {
         "autoname": "yana_efris.utils.custom_naming.set_manual_name"
-    },
-    "POS Invoice": {
-        "on_submit": "yana_efris.events.pos_invoice.create_sales_invoice_from_pos"
     }
+    # "POS Invoice": {
+    #     "on_submit": "yana_efris.events.pos_invoice.create_sales_invoice_from_pos"
+    # }
 }
 
 # yana_efris/hooks.py
