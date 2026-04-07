@@ -43,7 +43,7 @@ def create_sales_invoice_from_pos(doc, method=None):
         )
 
         # PAYMENT DETAILS
-        si.custom_payment_types = doc.get("custom_payment_types") or doc.get("payment_types")
+        si.custom_payment_types = doc.get("custom_payment_types") or doc.get("payment_types") or "Cash"
         si.pos_profile = doc.pos_profile
         si.is_return = doc.is_return
         si.taxes_and_charges = doc.taxes_and_charges

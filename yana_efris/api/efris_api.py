@@ -831,3 +831,21 @@ def get_supplier_payable_summary(supplier, company):
         "overdue_count": overdue_count,
         "oldest_days": oldest_days
     }
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def get_user_companies(doctype, txt, searchfield, start, page_len, filters):
+
+    companies = frappe.get_list(
+        "Company",
+        fields=["name"],
+        filters={
+            searchfield: ["like", f"%{txt}%"]
+        },
+        start=start,
+        page_length=page_len,
+        ignore_permissions=False
+    )
+
+    # ✅ Convert to tuple format required by Frappe
+    return [(c.name,) for c in companies]

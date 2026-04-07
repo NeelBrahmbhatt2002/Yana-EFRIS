@@ -20,7 +20,35 @@
 
 // Global EFRIS sequential queue
 let efrisQueue = Promise.resolve();
+// ---------------------------------------------------------
+// FINAL OVERRIDE FOR UGANDA FUNCTION
+// ---------------------------------------------------------
 
+// setTimeout(() => {
+// 	if (typeof set_efris_invoice_details === "function") {
+// 		console.log("✅ Overriding Uganda set_efris_invoice_details");
+
+// 		const original_fn = set_efris_invoice_details;
+
+// 		set_efris_invoice_details = async function (frm) {
+// 			console.log("🛠 Intercepted Uganda tax logic");
+
+// 			// Run their original function first
+// 			await original_fn(frm);
+
+// 			// 🔥 FORCE FIX AFTER their logic
+// 			(frm.doc.taxes || []).forEach((tax) => {
+// 				if (tax.account_head && tax.account_head.includes("VAT")) {
+// 					tax.included_in_print_rate = 1;
+// 				}
+// 			});
+
+// 			frm.refresh_field("taxes");
+// 		};
+// 	} else {
+// 		console.warn("❌ set_efris_invoice_details not found");
+// 	}
+// }, 1000); // wait for all scripts to load
 // ---------------------------------------------------------
 // Queue-based API call (ENSURES ONLY ONE REQUEST AT A TIME)
 // ---------------------------------------------------------
