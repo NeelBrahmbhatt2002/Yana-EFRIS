@@ -20,7 +20,7 @@ doctype_js = {
 }
 
 app_include_js = [
-    "/assets/yana_efris/js/exchange_rate_common.js",
+    "/assets/yana_efris/js/exchange_rate_common.js?v=1",
     # "/assets/yana_efris/js/report_auto_company.js",
     "/assets/yana_efris/js/sidebar.js?v=2",
     "/assets/yana_efris/js/open_doctype_new_tab.js",
