@@ -19,7 +19,7 @@ def get_users_in_companies(companies):
     )
 
 def is_admin_user(user_email):
-    return "Admin" in frappe.get_roles(user_email)
+    return "Yana Support Admin" in frappe.get_roles(user_email)
 
 # @frappe.whitelist()
 # def get_contacts(user_email):

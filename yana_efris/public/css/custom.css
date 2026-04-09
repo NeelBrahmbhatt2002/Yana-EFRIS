@@ -244,3 +244,27 @@ ul#navbar-breadcrumbs{
   font-weight: bold;
   text-shadow: 0 0 3px rgba(255, 59, 59, 0.6);  
 }
+
+/* [data-page-route="Workspaces"] .layout-main-section {
+    background: url('/assets/yana_efris/icons/live-chat.png') no-repeat center center;
+    background-size: cover;
+    background-size: auto 300px;
+}
+
+[data-page-route="Workspaces"] .widget,
+[data-page-route="Workspaces"] .shortcut-widget-box,
+[data-page-route="Workspaces"] .widget-group,
+[data-page-route="Workspaces"] .desk-card {
+    
+    background: rgba(255, 255, 255, 0.15) !important; 
+    backdrop-filter: blur(10px);   
+    -webkit-backdrop-filter: blur(10px); 
+
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 12px;
+}
+
+[data-page-route="Workspaces"] .widget:hover {
+    transform: translateY(-3px);
+    transition: 0.2s ease;
+} */

@@ -180,13 +180,33 @@ frappe.ui.form.on("Sales Invoice", {
 	},
 	company(frm) {
 		if (frm.doc.company) {
-			frappe.call({
-				method: "yana_efris.api.efris_api.fetch_efris_branches",
-				args: {
-					company_name: frm.doc.company,
-				},
-				// callback: (r) => console.log("frappe.call ok", r),
-				error: (err) => console.error("frappe.call err", err),
+			// frappe.call({
+			// 	method: "yana_efris.api.efris_api.fetch_efris_branches",
+			// 	args: {
+			// 		company_name: frm.doc.company,
+			// 	},
+			// 	// callback: (r) => console.log("frappe.call ok", r),
+			// 	error: (err) => console.error("frappe.call err", err),
+			// });
+			// Step 1: Fetch company flag
+			frappe.db.get_value("Company", frm.doc.company, "efris_company").then((r) => {
+				const is_efris = r.message?.efris_company;
+
+				// Step 2: Only call API if EFRIS company
+				if (is_efris) {
+					frappe.call({
+						method: "yana_efris.api.efris_api.fetch_efris_branches",
+						args: {
+							company_name: frm.doc.company,
+						},
+						error: (err) => console.error("EFRIS API error", err),
+					});
+				} else {
+					console.log("Non-EFRIS company selected, skipping API");
+
+					// Optional: clear EFRIS-related fields if any
+					// frm.set_value("branch", null);
+				}
 			});
 		}
 	},
@@ -295,40 +315,96 @@ frappe.ui.form.on("Sales Invoice", {
 	},
 });
 
+// frappe.ui.form.on("Sales Invoice Item", {
+// 	item_code: function (frm, cdt, cdn) {
+// 		const row = frappe.get_doc(cdt, cdn);
+// 		if (!row.item_code) return;
+
+// 		frappe.call({
+// 			method: "yana_efris.api.efris_api.fetch_live_stock_by_goods_code",
+// 			args: {
+// 				goods_code: row.item_code,
+// 				company: frm.doc.company,
+// 			},
+// 			callback: function (r) {
+// 				if (!r.message) return;
+// 				console.log("Stock Quantity", r);
+
+// 				if (r.message.success) {
+// 					const stock = r.message.live_stock;
+// 					const item_id = r.message.efris_item_id;
+
+// 					frappe.model.set_value(cdt, cdn, "custom_efris_live_stock", stock);
+
+// 					frappe.show_alert({
+// 						message: `Live EFRIS stock for ${row.item_code}: <b>${stock}</b>`,
+// 						indicator: "green",
+// 					});
+
+// 					console.log(`EFRIS ID stored: ${item_id}`);
+// 				} else {
+// 					frappe.show_alert({
+// 						message: `EFRIS stock fetch failed: ${r.message.message || "Error"}`,
+// 						indicator: "red",
+// 					});
+// 				}
+// 			},
+// 		});
+// 	},
+// });
+
 frappe.ui.form.on("Sales Invoice Item", {
 	item_code: function (frm, cdt, cdn) {
 		const row = frappe.get_doc(cdt, cdn);
-		if (!row.item_code) return;
+		if (!row.item_code || !frm.doc.company) return;
 
-		frappe.call({
-			method: "yana_efris.api.efris_api.fetch_live_stock_by_goods_code",
-			args: {
-				goods_code: row.item_code,
-				company: frm.doc.company,
-			},
-			callback: function (r) {
-				if (!r.message) return;
-				console.log("Stock Quantity", r);
+		// 🔹 Step 1: Check if company is EFRIS
+		frappe.db.get_value("Company", frm.doc.company, "efris_company").then((r) => {
+			const is_efris = r.message?.efris_company;
 
-				if (r.message.success) {
-					const stock = r.message.live_stock;
-					const item_id = r.message.efris_item_id;
+			// ❌ Skip if not EFRIS
+			if (!is_efris) {
+				console.log("Non-EFRIS company → skipping stock API");
 
-					frappe.model.set_value(cdt, cdn, "custom_efris_live_stock", stock);
+				// Optional: clear field
+				frappe.model.set_value(cdt, cdn, "custom_efris_live_stock", null);
 
-					frappe.show_alert({
-						message: `Live EFRIS stock for ${row.item_code}: <b>${stock}</b>`,
-						indicator: "green",
-					});
+				return;
+			}
 
-					console.log(`EFRIS ID stored: ${item_id}`);
-				} else {
-					frappe.show_alert({
-						message: `EFRIS stock fetch failed: ${r.message.message || "Error"}`,
-						indicator: "red",
-					});
-				}
-			},
+			// ✅ Step 2: Call API
+			frappe.call({
+				method: "yana_efris.api.efris_api.fetch_live_stock_by_goods_code",
+				args: {
+					goods_code: row.item_code,
+					company: frm.doc.company,
+				},
+				callback: function (r) {
+					if (!r.message) return;
+
+					console.log("Stock Quantity", r);
+
+					if (r.message.success) {
+						const stock = r.message.live_stock;
+						const item_id = r.message.efris_item_id;
+
+						frappe.model.set_value(cdt, cdn, "custom_efris_live_stock", stock);
+
+						frappe.show_alert({
+							message: `Live EFRIS stock for ${row.item_code}: <b>${stock}</b>`,
+							indicator: "green",
+						});
+
+						console.log(`EFRIS ID stored: ${item_id}`);
+					} else {
+						frappe.show_alert({
+							message: `EFRIS stock fetch failed: ${r.message.message || "Error"}`,
+							indicator: "red",
+						});
+					}
+				},
+				error: (err) => console.error("EFRIS stock API error", err),
+			});
 		});
 	},
 });
