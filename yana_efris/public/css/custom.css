@@ -245,10 +245,43 @@ ul#navbar-breadcrumbs{
   text-shadow: 0 0 3px rgba(255, 59, 59, 0.6);  
 }
 
+/* Highlight Allocated Amount column in Payment Entry */
+
+/* [data-fieldname="references"] .grid-row .data-row .grid-static-col[data-fieldname="allocated_amount"],
+[data-fieldname="references"] .grid-row .data-row .grid-input-col[data-fieldname="allocated_amount"] {
+    background-color: yellow !important; 
+    font-weight: 600;
+    border-bottom: 2px solid var(--table-border-color);
+} */
+
+/* Static cell (view mode) */
+[data-fieldname="references"] 
+.grid-row .data-row 
+.grid-static-col[data-fieldname="allocated_amount"] {
+    background-color: yellow !important;
+    font-weight: 600;
+    border-bottom: 2px solid var(--table-border-color);
+}
+
+/* Editable cell wrapper */
+[data-fieldname="references"] 
+.grid-row .data-row 
+.grid-static-col[data-fieldname="allocated_amount"] {
+    background-color: yellow !important;
+}
+
+/* Actual input field */
+[data-fieldname="references"] 
+.grid-row .data-row 
+.grid-static-col[data-fieldname="allocated_amount"] input {
+    background-color: yellow !important;
+    color: var(--text-muted);
+}
+
 /* [data-page-route="Workspaces"] .layout-main-section {
-    background: url('/assets/yana_efris/icons/live-chat.png') no-repeat center center;
+    background: url('/assets/yana_efris/icons/YanaERP.png') no-repeat center center;
     background-size: cover;
-    background-size: auto 300px;
+    background-size: auto 800px;
 }
 
 [data-page-route="Workspaces"] .widget,
@@ -258,7 +291,7 @@ ul#navbar-breadcrumbs{
     
     background: rgba(255, 255, 255, 0.15) !important; 
     backdrop-filter: blur(10px);   
-    -webkit-backdrop-filter: blur(10px); 
+    -webkit-backdrop-filter: blur(3px); 
 
     border: 1px solid rgba(255, 255, 255, 0.25);
     border-radius: 12px;

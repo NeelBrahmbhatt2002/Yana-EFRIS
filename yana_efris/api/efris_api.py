@@ -22,6 +22,7 @@ from frappe.query_builder import DocType, functions as fn
 from frappe.utils import flt, nowdate
 from frappe.utils.nestedset import get_root_of
 from erpnext.stock.get_item_details import get_conversion_factor
+from frappe.utils.pdf import get_pdf
 
 
 @frappe.whitelist()
@@ -1478,3 +1479,22 @@ def get_items(pos_profile, search_term=None, item_group=None, start=0, limit=20,
 	except Exception as e:
 		frappe.log_error(frappe.get_traceback(), "Get Items Error")
 		frappe.throw(_("Error fetching items: {0}").format(str(e)))
+
+
+@frappe.whitelist()
+def download_invoice_pdf(doctype, name, format=None):
+    # fallback if not provided
+    if not format:
+        format = frappe.get_meta(doctype).default_print_format or "Standard"
+
+    html = frappe.get_print(
+        doctype,
+        name,
+        print_format=format
+    )
+
+    pdf = get_pdf(html)
+
+    frappe.local.response.filename = f"{name}.pdf"
+    frappe.local.response.filecontent = pdf
+    frappe.local.response.type = "download"
