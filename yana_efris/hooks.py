@@ -33,7 +33,7 @@ app_include_js = [
 # app_include_css = "/assets/yana_efris/css/custom.css"
 
 app_include_css = [
-    "/assets/yana_efris/css/custom.css?v=0.0.5"
+    "/assets/yana_efris/css/custom.css?v=0.0.6"
 ]
 
 doctype_list_js = {
