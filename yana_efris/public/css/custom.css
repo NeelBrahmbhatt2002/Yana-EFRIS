@@ -278,11 +278,11 @@ ul#navbar-breadcrumbs{
     color: var(--text-muted);
 }
 
-/* [data-page-route="Workspaces"] .layout-main-section {
+/* html:not([data-theme="dark"]) [data-page-route="Workspaces"] .layout-main-section {
     background: url('/assets/yana_efris/icons/YanaERP.png') no-repeat center center;
     background-size: cover;
     background-size: auto 800px;
-}
+} */
 
 [data-page-route="Workspaces"] .widget,
 [data-page-route="Workspaces"] .shortcut-widget-box,
@@ -290,9 +290,8 @@ ul#navbar-breadcrumbs{
 [data-page-route="Workspaces"] .desk-card {
     
     background: rgba(255, 255, 255, 0.15) !important; 
-    backdrop-filter: blur(10px);   
-    -webkit-backdrop-filter: blur(3px); 
-
+    backdrop-filter: blur(3px);   
+    /* -webkit-backdrop-filter: blur(6px);  */
     border: 1px solid rgba(255, 255, 255, 0.25);
     border-radius: 12px;
 }
@@ -300,4 +299,39 @@ ul#navbar-breadcrumbs{
 [data-page-route="Workspaces"] .widget:hover {
     transform: translateY(-3px);
     transition: 0.2s ease;
+}
+
+
+/* .navbar-brand img {
+    height: 50px !important;
+    max-height: 50px !important;
+    width: auto !important;
+}
+
+.navbar {
+    height: 70px !important;
+}
+
+.navbar-brand {
+    max-width: 250px !important;
+    overflow: visible !important;
 } */
+
+@media (min-width: 992px) {
+
+    .navbar-brand img {
+        height: 50px !important;
+        max-height: 50px !important;
+        width: auto !important;
+    }
+
+    .navbar {
+        height: 70px !important;
+    }
+
+    .navbar-brand {
+        max-width: 250px !important;
+        overflow: visible !important;
+    }
+
+}

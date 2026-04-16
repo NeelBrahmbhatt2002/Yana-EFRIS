@@ -26,7 +26,8 @@ app_include_js = [
     "/assets/yana_efris/js/open_doctype_new_tab.js",
     "/assets/yana_efris/js/permission_override.js",
     "/assets/yana_efris/js/bank_reconciliation_tool.js",
-    "/assets/yana_efris/js/print_override.js"
+    "/assets/yana_efris/js/print_override.js",
+    # "/assets/yana_efris/js/set_company_logo.js"
     # "/assets/yana_efris/js/override_help.js"
 ]
 
