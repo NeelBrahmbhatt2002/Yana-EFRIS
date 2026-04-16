@@ -1498,3 +1498,39 @@ def download_invoice_pdf(doctype, name, format=None):
     frappe.local.response.filename = f"{name}.pdf"
     frappe.local.response.filecontent = pdf
     frappe.local.response.type = "download"
+
+@frappe.whitelist()
+def get_user_company():
+    user = frappe.session.user
+
+    company = frappe.db.get_value(
+        "User Permission",
+        {
+            "user": user,
+            "allow": "Company",
+            "is_default": 1
+        },
+        "for_value"
+    )
+
+    # fallback if no default
+    if not company:
+        company = frappe.db.get_value(
+            "User Permission",
+            {
+                "user": user,
+                "allow": "Company"
+            },
+            "for_value"
+        )
+
+    return company
+
+@frappe.whitelist()
+def get_user_company_logo():
+    company = get_user_company()
+
+    if not company:
+        return None
+
+    return frappe.db.get_value("Company", company, "company_logo")
