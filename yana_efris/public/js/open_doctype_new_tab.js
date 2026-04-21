@@ -16,17 +16,27 @@ $(document).on("mousedown", "a[href^='/app/']", function (e) {
 
 // ✅ NEW: Handle POSNext shortcut widget
 // POSNext shortcut fix (no double tab)
-$(document).on("mousedown", ".shortcut-widget-box", function (e) {
-	const label = this.getAttribute("aria-label") || "";
+// $(document).on("mousedown", ".shortcut-widget-box", function (e) {
+// 	const label = this.getAttribute("aria-label") || "";
 
-	if (label === "Start POS") {
-		// 🔥 Stop EVERYTHING
-		e.preventDefault();
-		e.stopImmediatePropagation();
+// 	if (label === "Start POS") {
+// 		// 🔥 Stop EVERYTHING
+// 		e.preventDefault();
+// 		e.stopImmediatePropagation();
 
-		// Open only once
-		window.open("/pos", "_blank");
+// 		// Open only once
+// 		window.open("/pos", "_blank");
 
-		return false;
-	}
+// 		return false;
+// 	}
+// });
+
+$(document).on("click", 'a.item-anchor[href="/pos"]', function (e) {
+	console.log("Triggered");
+	e.preventDefault();
+	e.stopImmediatePropagation();
+
+	window.open("/pos", "_blank");
+
+	return false;
 });

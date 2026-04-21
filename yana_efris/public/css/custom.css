@@ -335,3 +335,7 @@ ul#navbar-breadcrumbs{
     }
 
 }
+
+.sidebar-item-container[item-name="POSNext"] {
+    display: none !important;
+}
