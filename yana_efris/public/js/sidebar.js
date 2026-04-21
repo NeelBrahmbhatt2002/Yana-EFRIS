@@ -49,7 +49,7 @@ const CUSTOM_MENUS = [
 		title: "Sale",
 		icon: "star",
 		items: [
-			{ label: "Point of Sale", link: "/app/point-of-sale", icon: "" },
+			{ label: "Point of Sale", link: "/pos", icon: "" },
 			{ label: "Customers", link: "/app/customer", icon: "" },
 			{ label: "Quotes", link: "/app/quotation", icon: "" },
 			{ label: "Sales Orders", link: "/app/sales-order", icon: "" },
