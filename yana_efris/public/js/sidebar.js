@@ -372,9 +372,9 @@ $(document).ready(function () {
 
 			$public_section.append(create_home_link("Assets", "/app/assets", "assets"));
 
-			$public_section.append(create_home_link("HR", "/app/hr", "hr"));
+			$public_section.append(create_home_link("HR & Payroll", "/app/hr", "hr"));
 
-			$public_section.append(create_home_link("Payroll", "/app/payroll", "money-coins-1"));
+			// $public_section.append(create_home_link("Payroll", "/app/payroll", "money-coins-1"));
 
 			CUSTOM_MENUS_1.forEach((menu) => {
 				$public_section.append(create_menu_group(menu));
