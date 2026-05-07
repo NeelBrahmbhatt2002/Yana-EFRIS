@@ -1534,3 +1534,16 @@ def get_user_company_logo():
         return None
 
     return frappe.db.get_value("Company", company, "company_logo")
+
+@frappe.whitelist()
+def set_active_company(company):
+    # 1. Set user default (DB level)
+    frappe.defaults.set_user_default("company", company)
+
+    # 2. Set in session (IMPORTANT)
+    frappe.local.session.data["company"] = company
+
+    # 3. Clear cache
+    frappe.clear_cache(user=frappe.session.user)
+
+    return {"status": "success"}
