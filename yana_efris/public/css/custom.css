@@ -335,6 +335,15 @@ ul#navbar-breadcrumbs{
 
 }
 
+/* Hide company switcher on mobile */
+@media (max-width: 768px) {
+
+    #company-switcher {
+        display: none !important;
+    }
+
+}
+
 .sidebar-item-container[item-name="POSNext"] {
     display: none !important;
 }
