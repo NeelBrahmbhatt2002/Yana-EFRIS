@@ -27,9 +27,6 @@ function get_user_companies() {
 			if (!current_company) {
 				let first_company = companies[0];
 
-				console.log("No default company found");
-				console.log("Assigning:", first_company);
-
 				switch_company(first_company);
 
 				return;
@@ -40,39 +37,75 @@ function get_user_companies() {
 	});
 }
 
+function should_show_company_switcher() {
+	let route = frappe.get_route();
+
+	console.log("Route is", route);
+
+	return route && route[0] === "Workspaces" && route[1] === "Home";
+}
+
+function toggle_company_switcher_visibility() {
+	if (should_show_company_switcher()) {
+		$("#company-switcher-wrapper").show();
+	} else {
+		$("#company-switcher-wrapper").hide();
+	}
+}
+
 function render_company_dropdown(companies) {
+	// Prevent duplicate rendering
+	if ($("#company-switcher-wrapper").length) {
+		toggle_company_switcher_visibility();
+		return;
+	}
+
 	let current_company = frappe.defaults.get_user_default("company");
 
 	let options = companies
 		.map((c) => {
 			let selected = c === current_company ? "selected" : "";
+
 			return `<option value="${c}" ${selected}>${c}</option>`;
 		})
 		.join("");
 
 	let dropdown = $(`
-		<select id="company-switcher"
-			style="margin-left: 12px; padding: 5px; border-radius: 6px;">
-			${options}
-		</select>
+		<div id="company-switcher-wrapper">
+			<select id="company-switcher"
+				style="
+					margin-left: 12px;
+					padding: 5px;
+					border-radius: 6px;
+				">
+				${options}
+			</select>
+		</div>
 	`);
 
-	// Wait until navbar exists
 	let interval = setInterval(() => {
 		if ($(".navbar .search-bar").length) {
 			$(".navbar .search-bar").after(dropdown);
+
 			clearInterval(interval);
+
+			toggle_company_switcher_visibility();
 		}
 	}, 200);
-
-	$(document).on("change", "#company-switcher", function () {
-		console.log("Dropdown changed ✅");
-		let company = $(this).val();
-		console.log("Selected company:", company);
-		console.log("Current default BEFORE API:", frappe.defaults.get_user_default("company"));
-		switch_company(company);
-	});
 }
+
+frappe.router.on("change", function () {
+	console.log("Route changed");
+
+	setTimeout(() => {
+		toggle_company_switcher_visibility();
+	}, 200);
+});
+
+$(document).on("change", "#company-switcher", function () {
+	let company = $(this).val();
+	switch_company(company);
+});
 
 function switch_company(company) {
 	frappe.call({
@@ -81,9 +114,6 @@ function switch_company(company) {
 			company: company,
 		},
 		callback: function () {
-			console.log("AFTER API call:");
-			console.log("Selected company:", company);
-			console.log("Current default AFTER API:", frappe.defaults.get_user_default("company"));
 			frappe.show_alert({
 				message: `Switched to ${company}`,
 				indicator: "green",
