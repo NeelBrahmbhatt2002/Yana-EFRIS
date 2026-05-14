@@ -187,11 +187,11 @@ def sync_efris_items(company_name: str):
             else:
                 item_docname = code  # already prefixed in EFRIS
 
-            frappe.log_error(
-                f"Existence check: goodsCode={code}, numeric={is_numeric}, "
-                f"expected_docname={item_docname}",
-                "Page Skip Debug"
-            )
+            # frappe.log_error(
+            #     f"Existence check: goodsCode={code}, numeric={is_numeric}, "
+            #     f"expected_docname={item_docname}",
+            #     "Page Skip Debug"
+            # )
 
             # Log the record we're about to inspect
             frappe.log_error(f"Inspecting record page={page_no} index={i} code={item_docname}", "Page Skip Debug")
@@ -412,10 +412,10 @@ def create_simple_item(rec, company_name):
     item.efris_item = 1
     item.efris_e_company = company_name
 
-    frappe.log_error(
-        f"Item doc initialized: name={item_docname}, item_code={code}, item_name={name}",
-        "Page Skip Debug"
-    )
+    # frappe.log_error(
+    #     f"Item doc initialized: name={item_docname}, item_code={code}, item_name={name}",
+    #     "Page Skip Debug"
+    # )
 
     # ----------------------------------------------------------------------
     # 7️⃣ Standard Selling Rate
