@@ -499,10 +499,10 @@ def create_simple_item(rec, company_name):
     else:
         e_tax_category = "01:A: Standard (18%)"
 
-    frappe.log_error(
-        f"Commodity: code={commodity_code}, name={commodity_name}, tax_cat={e_tax_category}",
-        "Page Skip Debug"
-    )
+    # frappe.log_error(
+    #     f"Commodity: code={commodity_code}, name={commodity_name}, tax_cat={e_tax_category}",
+    #     "Page Skip Debug"
+    # )
 
     if commodity_code:
         existing_commodity = frappe.db.get_value(
@@ -590,10 +590,10 @@ def create_simple_item(rec, company_name):
     # 1️⃣2️⃣ Stock Reconciliation (opening stock)
     # ----------------------------------------------------------------------
     if stock_unit > 0:
-        frappe.log_error(
-            f"Creating Stock Reconciliation: item={item_docname}, qty={stock_unit}, rate={selling_rate}",
-            "Page Skip Debug"
-        )
+        # frappe.log_error(
+        #     f"Creating Stock Reconciliation: item={item_docname}, qty={stock_unit}, rate={selling_rate}",
+        #     "Page Skip Debug"
+        # )
         create_stock_reconciliation_for_item(item.name, stock_unit, selling_rate, company_name)
 
     return True
@@ -639,7 +639,7 @@ def create_stock_reconciliation_for_item(item_code, qty, rate, company_name):
         stock_recon.insert(ignore_permissions=True)
         stock_recon.submit()
 
-        frappe.log_error(f"Stock Reconciliation created for item {item_code} qty={qty} warehouse={warehouse}", "Page Skip Debug")
+        # frappe.log_error(f"Stock Reconciliation created for item {item_code} qty={qty} warehouse={warehouse}", "Page Skip Debug")
 
     except Exception as e:
         tb = frappe.get_traceback()

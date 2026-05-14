@@ -1,4 +1,4 @@
-__version__ = "0.0.5"
+__version__ = "0.0.6"
 
 from yana_efris.api import efris_api
 # from yana_efris.overrides.posnext_sales_invoice import apply_tax_inclusive as patched_apply_tax_inclusive
