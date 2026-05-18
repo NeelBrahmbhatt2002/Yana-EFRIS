@@ -373,37 +373,42 @@ frappe.ui.form.on("Sales Invoice Item", {
 			}
 
 			// ✅ Step 2: Call API
-			frappe.call({
-				method: "yana_efris.api.efris_api.fetch_live_stock_by_goods_code",
-				args: {
-					goods_code: row.item_code,
-					company: frm.doc.company,
-				},
-				callback: function (r) {
-					if (!r.message) return;
+			frappe.db.get_value("Item", row.item_code, "item_code").then((item_res) => {
+				const actual_item_code = item_res.message.item_code;
+				console.log("Actual Item Code", actual_item_code);
 
-					console.log("Stock Quantity", r);
+				frappe.call({
+					method: "yana_efris.api.efris_api.fetch_live_stock_by_goods_code",
+					args: {
+						goods_code: actual_item_code,
+						company: frm.doc.company,
+					},
+					callback: function (r) {
+						if (!r.message) return;
 
-					if (r.message.success) {
-						const stock = r.message.live_stock;
-						const item_id = r.message.efris_item_id;
+						console.log("Stock Quantity", r);
 
-						frappe.model.set_value(cdt, cdn, "custom_efris_live_stock", stock);
+						if (r.message.success) {
+							const stock = r.message.live_stock;
+							const item_id = r.message.efris_item_id;
 
-						frappe.show_alert({
-							message: `Live EFRIS stock for ${row.item_code}: <b>${stock}</b>`,
-							indicator: "green",
-						});
+							frappe.model.set_value(cdt, cdn, "custom_efris_live_stock", stock);
 
-						console.log(`EFRIS ID stored: ${item_id}`);
-					} else {
-						frappe.show_alert({
-							message: `EFRIS stock fetch failed: ${r.message.message || "Error"}`,
-							indicator: "red",
-						});
-					}
-				},
-				error: (err) => console.error("EFRIS stock API error", err),
+							frappe.show_alert({
+								message: `Live EFRIS stock for ${row.item_code}: <b>${stock}</b>`,
+								indicator: "green",
+							});
+
+							console.log(`EFRIS ID stored: ${item_id}`);
+						} else {
+							frappe.show_alert({
+								message: `EFRIS stock fetch failed: ${r.message.message || "Error"}`,
+								indicator: "red",
+							});
+						}
+					},
+					error: (err) => console.error("EFRIS stock API error", err),
+				});
 			});
 		});
 	},
