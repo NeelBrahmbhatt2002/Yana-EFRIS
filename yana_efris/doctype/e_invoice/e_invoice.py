@@ -28,7 +28,7 @@ def get_einvoice_json(self, sales_invoice):
     einvoice_json.update(self.get_buyer_extend())
     einvoice_json.update(self.get_good_details())
     einvoice_json.update(self.get_tax_details())
-    einvoice_json.update(self.get_summary())
+    einvoice_json.update(self.get_summary(sales_invoice))
     einvoice_json.update(self.get_payment_details())
     return einvoice_json
 
@@ -91,8 +91,12 @@ def get_seller_details_json(self, sales_invoice):
         frappe.log_error(f"Error getting seller details JSON: {e}", "E Invoice - get_seller_details_json")
         raise
 
-def get_summary(self):
+def get_summary(self,sales_invoice):
     efris_log_info("Getting summary JSON (final patched version for tax consistency)")
+
+    # Defensive handling
+    if isinstance(sales_invoice, str):
+        sales_invoice = frappe.get_doc("Sales Invoice", sales_invoice)
 
     # ✅ Step 1: Calculate tax total same way as get_tax_details
     total_goods_tax = 0.0
@@ -116,7 +120,7 @@ def get_summary(self):
             "grossAmount": str(gross_amount),
             "itemCount": str(self.item_count),
             "modeCode": str(self.mode_code),
-            "remarks": self.remarks or "",
+            "remarks": sales_invoice.remarks or "",
             "qrCode": self.qr_code or ""
         }
     }
