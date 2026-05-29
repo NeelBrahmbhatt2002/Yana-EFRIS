@@ -120,34 +120,30 @@ frappe.ui.form.on("Sales Invoice", {
 	refresh(frm) {
 		// Add a custom button
 		if (frm.doc.efris_irn) {
-			frm.add_custom_button(
-				__("Validate Invoice"),
-				async function () {
-					try {
-						await frappe.call({
-							method: "yana_efris.api.efris_api.validate_fdn_number",
-							args: {
-								fdn_number: frm.doc.efris_irn,
-								company: frm.doc.company,
-							},
-							freeze: true,
-							freeze_message: "Validating invoice from EFRIS...",
-							callback: function (r) {
-								if (!r.exc) {
-									frm.reload_doc();
-								}
-								frappe.show_alert({
-									message: `Invoice is Verified`,
-									indicator: "green",
-								});
-							},
-						});
-					} catch (error) {
-						console.error(`Error validating invoice: ${error}`);
-					}
-				},
-				// Optional group name (creates a dropdown)
-			);
+			// frm.add_custom_button(__("Validate Invoice"), async function () {
+			// 	try {
+			// 		await frappe.call({
+			// 			method: "yana_efris.api.efris_api.validate_fdn_number",
+			// 			args: {
+			// 				fdn_number: frm.doc.efris_irn,
+			// 				company: frm.doc.company,
+			// 			},
+			// 			freeze: true,
+			// 			freeze_message: "Validating invoice from EFRIS...",
+			// 			callback: function (r) {
+			// 				if (!r.exc) {
+			// 					frm.reload_doc();
+			// 				}
+			// 				frappe.show_alert({
+			// 					message: `Invoice is Verified`,
+			// 					indicator: "green",
+			// 				});
+			// 			},
+			// 		});
+			// 	} catch (error) {
+			// 		console.error(`Error validating invoice: ${error}`);
+			// 	}
+			// });
 		}
 	},
 	customer: function (frm) {
@@ -166,15 +162,15 @@ frappe.ui.form.on("Sales Invoice", {
 
 				frm.set_value("custom_customer_outstanding_amount", data.outstanding);
 
-				frappe.msgprint({
-					title: "Customer Credit Information",
-					indicator: data.overdue_count > 0 ? "red" : "green",
-					message: `
-	                    <b>Outstanding Amount:</b> ${format_currency(data.outstanding)} <br>
-	                    <b>Overdue Invoices:</b> ${data.overdue_count} <br>
-	                    <b>Oldest Overdue:</b> ${data.oldest_days} days
-	                `,
-				});
+				// frappe.msgprint({
+				// 	title: "Customer Credit Information",
+				// 	indicator: data.overdue_count > 0 ? "red" : "green",
+				// 	message: `
+				//         <b>Outstanding Amount:</b> ${format_currency(data.outstanding)} <br>
+				//         <b>Overdue Invoices:</b> ${data.overdue_count} <br>
+				//         <b>Oldest Overdue:</b> ${data.oldest_days} days
+				//     `,
+				// });
 			},
 		});
 	},

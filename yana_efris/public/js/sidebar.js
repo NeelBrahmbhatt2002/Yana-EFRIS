@@ -43,6 +43,7 @@ const CUSTOM_MENUS = [
 			{ label: "Suppliers", link: "/app/supplier", icon: "" },
 			{ label: "Purchase Orders", link: "/app/purchase-order", icon: "" },
 			{ label: "Purchase Invoices", link: "/app/purchase-invoice", icon: "" },
+			{ label: "Purchase Receipts", link: "/app/purchase-receipt", icon: "" },
 		],
 	},
 	{
