@@ -20,6 +20,31 @@ frappe.after_ajax(function () {
 			}
 
 			if (
+				message_text.includes("Document renamed from") &&
+				message_text.includes("to <strong>")
+			) {
+				const match = message_text.match(/to <strong>(.*?)<\/strong>/);
+
+				if (match && match[1]) {
+					const newInvoiceName = match[1];
+
+					// Already on SAL? Do nothing.
+					if (cur_frm?.doc?.name !== newInvoiceName) {
+						console.log("Redirecting to renamed invoice:", newInvoiceName);
+
+						setTimeout(() => {
+							frappe.set_route("Form", "Sales Invoice", newInvoiceName);
+
+							setTimeout(() => {
+								console.log("Location Reload success");
+								window.location.reload();
+							}, 1000);
+						}, 1500);
+					}
+				}
+			}
+
+			if (
 				message_text.includes("does not have doctype access") ||
 				message_text.includes("No permission for") ||
 				message_text.includes("Not permitted") ||

@@ -172,6 +172,25 @@ def fetch_efris_branches(company_name=None):
 		frappe.log_error(f"Exception in fetch_efris_branches_and_map: {e}", "Yana EFRIS - fetch_efris_branches_and_map")
 		return {"success": False, "error": str(e)}
 
+from uganda_compliance.efris.api_classes.e_invoice import on_submit_sales_invoice
+
+@frappe.whitelist()	
+def send_to_efris(doc):	 
+	if isinstance(doc, str):
+		doc = json.loads(doc)
+	# Convert dict to Frappe Document
+	if isinstance(doc, dict):
+		doc = frappe.get_doc(doc) 
+	on_submit_sales_invoice(doc,'manual_submit')
+	efris_log_info(
+    	f"YANA DEBUG: Returning new_name={getattr(frappe.flags, 'efris_new_name', None)}"
+	)
+	return {
+		"message": "Sales Invoice sent to EFRIS successfully.",
+		"status": "success",
+		"new_name": getattr(frappe.flags, "efris_new_name", None)
+	}
+
 @staticmethod
 def generate_irn(sales_invoice):
 	"""
@@ -261,6 +280,8 @@ def generate_irn(sales_invoice):
 		else:
 			new_name = original_name
 
+		frappe.flags.efris_new_name = new_name
+
 		# Rename in DB
 		if original_name != new_name:
 			frappe.rename_doc("Sales Invoice", original_name, new_name, force=True)
@@ -280,6 +301,7 @@ def generate_irn(sales_invoice):
 		# Save renamed doc
 		sales_invoice = frappe.get_doc("Sales Invoice", new_name)
 		sales_invoice.flags.ignore_validate_update_after_submit = True
+		sales_invoice.custom_sal_invoice_name = new_name
 		sales_invoice.flags.ignore_validate = True
 		sales_invoice.flags.ignore_on_update = True
 		sales_invoice.flags.ignore_mandatory = True

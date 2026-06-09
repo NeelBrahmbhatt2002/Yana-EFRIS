@@ -116,35 +116,118 @@ function queue_live_stock_call(frm, row) {
 	});
 }
 
-frappe.ui.form.on("Sales Invoice", {
-	refresh(frm) {
-		// Add a custom button
-		if (frm.doc.efris_irn) {
-			// frm.add_custom_button(__("Validate Invoice"), async function () {
-			// 	try {
-			// 		await frappe.call({
-			// 			method: "yana_efris.api.efris_api.validate_fdn_number",
-			// 			args: {
-			// 				fdn_number: frm.doc.efris_irn,
-			// 				company: frm.doc.company,
-			// 			},
-			// 			freeze: true,
-			// 			freeze_message: "Validating invoice from EFRIS...",
-			// 			callback: function (r) {
-			// 				if (!r.exc) {
-			// 					frm.reload_doc();
-			// 				}
-			// 				frappe.show_alert({
-			// 					message: `Invoice is Verified`,
-			// 					indicator: "green",
-			// 				});
-			// 			},
-			// 		});
-			// 	} catch (error) {
-			// 		console.error(`Error validating invoice: ${error}`);
-			// 	}
-			// });
+function get_auto_send_submitted_invoice_flag(frm) {
+	console.log("Checking EFRIS company settings for auto send submitted invoice flag");
+	return new Promise((resolve) => {
+		if (!frm.doc.efris_company || frm.doc.efris_invoice !== 1) {
+			return resolve(0);
 		}
+
+		frappe.call({
+			method: "uganda_compliance.efris.doctype.e_invoicing_settings.e_invoicing_settings.get_e_company_settings",
+			args: { company_name: frm.doc.company },
+			callback: function (r) {
+				if (r.message && r.message.auto_send_submitted_invoice == 1) {
+					console.log("Auto send submitted invoice is enabled in EFRIS settings");
+					resolve(1);
+				} else {
+					resolve(0);
+				}
+			},
+		});
+	});
+}
+
+frappe.ui.form.on("Sales Invoice", {
+	// after_submit(frm) {
+	// 	setTimeout(() => {
+	// 		if (
+	// 			frm.doc.custom_sal_invoice_name &&
+	// 			frm.doc.name !== frm.doc.custom_sal_invoice_name
+	// 		) {
+	// 			console.log("After save name", frm.doc.custom_sal_invoice_name);
+	// 			frappe.set_route("Form", "Sales Invoice", frm.doc.custom_sal_invoice_name);
+	// 		}
+	// 	}, 2000);
+	// },
+	refresh: async function (frm) {
+		// Give Uganda Compliance time to add its button
+		setTimeout(async () => {
+			// Remove original Uganda Compliance button
+			frm.remove_custom_button(__("Submit To EFRIS"));
+
+			// Same conditions as Uganda Compliance
+			if (
+				frm.doc.docstatus != 1 ||
+				!frm.doc.efris_company ||
+				frm.doc.efris_irn ||
+				!frm.doc.efris_invoice
+			) {
+				console.log("Skipping EFRIS submission button for non-EFRIS or return invoices");
+				return;
+			}
+
+			const auto_send_submitted_invoice = await get_auto_send_submitted_invoice_flag(frm);
+			console.log("Auto send submitted invoice flag:", auto_send_submitted_invoice);
+
+			if (auto_send_submitted_invoice != 1) {
+				// Add our custom button
+				console.log("Adding custom EFRIS button");
+				frm.add_custom_button(__("Submit To EFRIS"), async function () {
+					frappe.confirm(
+						__("Are you sure you want to submit?"),
+						async function () {
+							try {
+								const response = await frappe.call({
+									method: "yana_efris.api.efris_api.send_to_efris",
+									args: {
+										doc: frm.doc,
+									},
+									freeze: true,
+									freeze_message: __("Submitting to EFRIS..."),
+								});
+
+								if (response.message) {
+									frappe.msgprint(
+										__("Sales Invoice submitted to EFRIS successfully."),
+									);
+
+									console.log("Full Response:", response);
+									console.log("Response Message:", response.message);
+
+									if (response.message.new_name) {
+										frappe.set_route(
+											"Form",
+											"Sales Invoice",
+											response.message.new_name,
+										);
+									} else {
+										frm.reload_doc();
+									}
+
+									// For now just reload.
+									// Later we will redirect to SAL series.
+								} else {
+									frm.reload_doc();
+									frappe.msgprint(
+										__("Failed to submit Sales Invoice to EFRIS."),
+									);
+								}
+							} catch (error) {
+								console.error("Error submitting to EFRIS:", error);
+
+								frappe.msgprint(
+									__("An error occurred while submitting to EFRIS."),
+								);
+							}
+						},
+						function () {
+							console.log("Submission to EFRIS was cancelled by the user.");
+						},
+					);
+				});
+			}
+		}, 1000);
 	},
 	customer: function (frm) {
 		if (!frm.doc.customer) return;
@@ -190,13 +273,13 @@ frappe.ui.form.on("Sales Invoice", {
 
 				// Step 2: Only call API if EFRIS company
 				if (is_efris) {
-					frappe.call({
-						method: "yana_efris.api.efris_api.fetch_efris_branches",
-						args: {
-							company_name: frm.doc.company,
-						},
-						error: (err) => console.error("EFRIS API error", err),
-					});
+					// frappe.call({
+					// 	method: "yana_efris.api.efris_api.fetch_efris_branches",
+					// 	args: {
+					// 		company_name: frm.doc.company,
+					// 	},
+					// 	error: (err) => console.error("EFRIS API error", err),
+					// });
 				} else {
 					console.log("Non-EFRIS company selected, skipping API");
 
