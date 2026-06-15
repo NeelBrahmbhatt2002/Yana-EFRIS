@@ -14,6 +14,7 @@ from uganda_compliance.efris.api_classes import stock_in as original_stock_in
 
 # Override generate_irn (already working fine)
 e_invoice.EInvoiceAPI.generate_irn = efris_api.generate_irn
+e_invoice.EInvoiceAPI.synchronize_e_invoice = efris_api.synchronize_e_invoice
 
 # ✅ Replace decrypt AES on module location
 encryption_utils.decrypt_aes_ecb = efris_api.decrypt_aes_ecb

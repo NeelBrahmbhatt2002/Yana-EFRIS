@@ -1787,3 +1787,19 @@ def set_active_company(company):
     frappe.clear_cache(user=frappe.session.user)
 
     return {"status": "success"}
+
+@staticmethod
+def synchronize_e_invoice(doc):   
+	from uganda_compliance.efris.api_classes.e_invoice import EInvoiceAPI     
+	if doc.get('efris_einvoice_status') == 'EFRIS Generated':
+		efris_log_info('synchronize skipped for EFRIS Generated invoice ')
+		return
+	if frappe.db.exists('E Invoice', doc.name):
+		efris_log_info("found einvoice..")
+		einvoice = EInvoiceAPI.get_einvoice(doc.name)
+		efris_log_info("before sync ...")
+		einvoice.sync_with_sales_invoice()
+		einvoice.flags.ignore_permissions = True
+		efris_log_info("sync_with_sales_invoice done ..")
+		einvoice.save()
+		efris_log_info("after save...")
