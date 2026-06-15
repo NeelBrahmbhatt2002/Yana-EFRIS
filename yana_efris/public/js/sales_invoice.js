@@ -228,6 +228,69 @@ frappe.ui.form.on("Sales Invoice", {
 				});
 			}
 		}, 1000);
+
+		if (frm.doc.docstatus === 0 && frm.doc.efris_company && frm.doc.efris_invoice) {
+			frm.add_custom_button(__("Recover EFRIS Invoice"), function () {
+				let d = new frappe.ui.Dialog({
+					title: __("Recover EFRIS Invoice"),
+					fields: [
+						{
+							label: __("FDN Number"),
+							fieldname: "fdn",
+							fieldtype: "Data",
+							reqd: 1,
+							description: __("Enter the FDN Number received from EFRIS."),
+						},
+					],
+					primary_action_label: __("Recover"),
+					primary_action(values) {
+						console.log("FDN entered:", values.fdn);
+
+						d.hide();
+
+						frappe.call({
+							method: "yana_efris.api.efris_api.recover_efris_invoice",
+							args: {
+								sales_invoice_name: frm.doc.name,
+								fdn: values.fdn,
+							},
+							freeze: true,
+							freeze_message: __("Fetching invoice from EFRIS..."),
+							callback: function (r) {
+								console.log("EFRIS Recovery Response", r.message);
+
+								if (r.message.success) {
+									frappe.msgprint({
+										title: __("Success"),
+										message: __("Invoice recovered successfully."),
+										indicator: "green",
+									});
+
+									// Redirect to renamed SAL invoice
+									if (r.message.invoice_name) {
+										frappe.set_route(
+											"Form",
+											"Sales Invoice",
+											r.message.invoice_name,
+										);
+									}
+								} else {
+									frappe.msgprint({
+										title: __("Error"),
+										message: r.message.error || __("Invalid FDN Number."),
+										indicator: "red",
+									});
+								}
+							},
+						});
+
+						// Backend call will come in Step 2
+					},
+				});
+
+				d.show();
+			});
+		}
 	},
 	customer: function (frm) {
 		if (!frm.doc.customer) return;

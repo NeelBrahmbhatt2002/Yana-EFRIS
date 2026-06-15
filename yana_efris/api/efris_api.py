@@ -172,6 +172,224 @@ def fetch_efris_branches(company_name=None):
 		frappe.log_error(f"Exception in fetch_efris_branches_and_map: {e}", "Yana EFRIS - fetch_efris_branches_and_map")
 		return {"success": False, "error": str(e)}
 
+
+@frappe.whitelist()
+def recover_efris_invoice(sales_invoice_name, fdn):
+	try:
+		from uganda_compliance.efris.api_classes.efris_api import make_post
+		from uganda_compliance.efris.api_classes.e_invoice import EInvoiceAPI
+		from frappe.model.rename_doc import rename_doc
+
+		sales_invoice = frappe.get_doc(
+			"Sales Invoice",
+			sales_invoice_name
+		)
+
+		status, response = make_post(
+			interfaceCode="T108",
+			content={
+				"invoiceNo": fdn
+			},
+			company_name=sales_invoice.company
+		)
+
+		frappe.log_error(
+			frappe.as_json(response),
+			"YANA EFRIS RECOVERY RESPONSE"
+		)
+
+		if not status:
+			return {
+				"success": False,
+				"error": response
+			}
+
+		seller_reference_no = (
+			response.get("sellerDetails", {})
+			.get("referenceNo")
+		)
+
+		invoice_no = (
+			response.get("basicInformation", {})
+			.get("invoiceNo")
+		)
+
+		if not seller_reference_no:
+			return {
+				"success": False,
+				"error": "Seller Reference Number not found in EFRIS response"
+			}
+
+		if not invoice_no:
+			return {
+				"success": False,
+				"error": "FDN Number not found in EFRIS response"
+			}
+
+		# ------------------------------------------------
+		# Already recovered
+		# ------------------------------------------------
+		if sales_invoice.name == seller_reference_no:
+			return {
+				"success": False,
+				"error": "This invoice has already been recovered."
+			}
+
+		# ------------------------------------------------
+		# Validate Buyer TIN
+		# ------------------------------------------------
+		buyer_tin = (
+			response.get("buyerDetails", {})
+			.get("buyerTin")
+		)
+
+		if buyer_tin and sales_invoice.tax_id:
+			if str(buyer_tin).strip() != str(sales_invoice.tax_id).strip():
+				return {
+					"success": False,
+					"error": (
+						f"TIN mismatch. "
+						f"Invoice TIN={sales_invoice.tax_id}, "
+						f"EFRIS TIN={buyer_tin}"
+					)
+				}
+
+		# ------------------------------------------------
+		# Validate Invoice Total
+		# ------------------------------------------------
+		try:
+			efris_total = float(
+				response.get("summary", {})
+				.get("grossAmount", 0)
+			)
+
+			erp_total = float(
+				sales_invoice.grand_total or 0
+			)
+
+			if abs(erp_total - efris_total) > 0.01:
+				return {
+					"success": False,
+					"error": (
+						f"Amount mismatch. "
+						f"Invoice Total={erp_total}, "
+						f"EFRIS Total={efris_total}"
+					)
+				}
+
+		except Exception as e:
+			return {
+				"success": False,
+				"error": f"Unable to validate invoice amount: {str(e)}"
+			}
+
+		# ------------------------------------------------
+		# Rename Sales Invoice
+		# ------------------------------------------------
+		old_invoice_name = sales_invoice.name
+
+		if old_invoice_name != seller_reference_no:
+
+			existing_invoice = frappe.db.exists(
+				"Sales Invoice",
+				seller_reference_no
+			)
+
+			if existing_invoice:
+				return {
+					"success": False,
+					"error": f"Invoice {seller_reference_no} already exists"
+				}
+
+			rename_doc(
+				"Sales Invoice",
+				old_invoice_name,
+				seller_reference_no,
+				force=True,
+				merge=False
+			)
+
+		# ------------------------------------------------
+		# Reload renamed invoice
+		# ------------------------------------------------
+		sales_invoice = frappe.get_doc(
+			"Sales Invoice",
+			seller_reference_no
+		)
+
+		# ------------------------------------------------
+		# Create E Invoice
+		# ------------------------------------------------
+		if not frappe.db.exists(
+			"E Invoice",
+			seller_reference_no
+		):
+			einvoice = EInvoiceAPI.create_einvoice(
+				seller_reference_no
+			)
+
+			EInvoiceAPI.handle_successful_irn_generation(
+				einvoice,
+				response
+			)
+
+			# Reload invoice after successful creation
+			sales_invoice = frappe.get_doc(
+				"Sales Invoice",
+				seller_reference_no
+			)
+
+			sales_invoice.db_set(
+				"efris_e_invoice",
+				einvoice.name,
+				update_modified=False
+			)
+
+		# ------------------------------------------------
+		# Update FDN
+		# ------------------------------------------------
+		sales_invoice.db_set(
+			"efris_irn",
+			invoice_no,
+			update_modified=False
+		)
+
+		# ------------------------------------------------
+		# Update Sales Invoice status
+		# ------------------------------------------------
+		if frappe.db.has_column(
+			"Sales Invoice",
+			"efris_einvoice_status"
+		):
+			sales_invoice.db_set(
+				"efris_einvoice_status",
+				"EFRIS Generated",
+				update_modified=False
+			)
+		
+		# if sales_invoice.docstatus == 0:
+		# 	sales_invoice.submit()
+
+		frappe.db.commit()
+
+		return {
+			"success": True,
+			"message": "Invoice recovered successfully",
+			"fdn": invoice_no,
+			"invoice_name": seller_reference_no
+		}
+
+	except Exception as e:
+		frappe.log_error(
+			frappe.get_traceback(),
+			"YANA EFRIS RECOVERY ERROR"
+		)
+
+		return {
+			"success": False,
+			"error": str(e)
+		}
+
 from uganda_compliance.efris.api_classes.e_invoice import on_submit_sales_invoice
 
 @frappe.whitelist()	
