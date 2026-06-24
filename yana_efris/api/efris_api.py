@@ -23,6 +23,7 @@ from frappe.utils import flt, nowdate
 from frappe.utils.nestedset import get_root_of
 from erpnext.stock.get_item_details import get_conversion_factor
 from frappe.utils.pdf import get_pdf
+from datetime import date, timedelta
 
 
 @frappe.whitelist()
@@ -1803,3 +1804,186 @@ def synchronize_e_invoice(doc):
 		efris_log_info("sync_with_sales_invoice done ..")
 		einvoice.save()
 		efris_log_info("after save...")
+
+@frappe.whitelist()
+def get_weekly_sales():
+    companies = get_allowed_companies()
+
+    today = date.today()
+
+    # Current week's Monday
+    current_monday = today - timedelta(days=today.weekday())
+
+    # Previous week's Monday
+    previous_monday = current_monday - timedelta(days=7)
+
+    days = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+    ]
+
+    data = []
+
+    for i, day_name in enumerate(days):
+        current_day = current_monday + timedelta(days=i)
+        previous_day = previous_monday + timedelta(days=i)
+
+        this_week = get_day_sales(current_day, companies)
+        last_week = get_day_sales(previous_day, companies)
+
+        growth_amount = this_week - last_week
+
+        if last_week > 0:
+            growth_percent = round(
+                (growth_amount / last_week) * 100,
+                2
+            )
+        else:
+            growth_percent = None
+
+        data.append(
+            {
+                "day": day_name,
+                "this_week": this_week,
+                "last_week": last_week,
+                "growth_amount": growth_amount,
+                "growth_percent": growth_percent,
+            }
+        )
+
+    return data
+
+def get_allowed_companies():
+    """
+    Returns companies allowed for the current user.
+    If no Company User Permissions exist (e.g. Administrator),
+    return all companies.
+    """
+    companies = frappe.get_all(
+        "User Permission",
+        filters={
+            "user": frappe.session.user,
+            "allow": "Company",
+        },
+        pluck="for_value",
+    )
+
+    if not companies:
+        companies = frappe.get_all("Company", pluck="name")
+
+    return companies
+
+
+def get_day_sales(posting_date, companies):
+    """
+    Returns total sales for a given date and list of companies.
+    Uses base_grand_total so all invoices are compared in company currency.
+    """
+    result = frappe.db.sql(
+        """
+        SELECT
+            COALESCE(SUM(base_grand_total), 0)
+        FROM `tabSales Invoice`
+        WHERE
+            docstatus = 1
+            AND posting_date = %(posting_date)s
+            AND company IN %(companies)s
+			AND IFNULL(is_return, 0) = 0
+        """,
+        {
+            "posting_date": posting_date,
+            "companies": tuple(companies),
+        },
+    )
+
+    return float(result[0][0] or 0)
+
+@frappe.whitelist()
+def get_monthly_sales():
+    companies = get_allowed_companies()
+
+    current_year = date.today().year
+    last_year = current_year - 1
+
+    months = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+    ]
+
+    data = []
+
+    current_month = date.today().month
+
+    for month_number, month_name in enumerate(months, start=1):
+
+        if month_number > current_month:
+            break
+
+        this_year = get_month_sales(
+            year=current_year,
+            month=month_number,
+            companies=companies
+        )
+
+        previous_year = get_month_sales(
+            year=last_year,
+            month=month_number,
+            companies=companies
+        )
+
+        growth_amount = this_year - previous_year
+
+        if previous_year > 0:
+            growth_percent = round(
+                (growth_amount / previous_year) * 100,
+                2
+            )
+        else:
+            growth_percent = None
+
+        data.append({
+            "month": month_name,
+            "this_year": this_year,
+            "last_year": previous_year,
+            "growth_amount": growth_amount,
+            "growth_percent": growth_percent,
+        })
+
+    return data
+
+def get_month_sales(year, month, companies):
+    result = frappe.db.sql(
+        """
+        SELECT
+            COALESCE(SUM(base_grand_total), 0)
+        FROM `tabSales Invoice`
+        WHERE
+            docstatus = 1
+            AND YEAR(posting_date) = %(year)s
+            AND MONTH(posting_date) = %(month)s
+            AND company IN %(companies)s
+            AND IFNULL(is_return, 0) = 0
+        """,
+        {
+            "year": year,
+            "month": month,
+            "companies": tuple(companies),
+        },
+    )
+
+    return float(result[0][0] or 0)
