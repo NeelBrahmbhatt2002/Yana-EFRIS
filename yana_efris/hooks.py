@@ -32,6 +32,8 @@ app_include_js = [
     # "/assets/yana_efris/js/override_help.js"
 ]
 
+company_data_to_be_ignored = ["E Invoicing Settings", "E Invoice"]
+
 # app_include_css = "/assets/yana_efris/css/custom.css"
 
 app_include_css = [
