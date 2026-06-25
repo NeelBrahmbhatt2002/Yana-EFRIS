@@ -1808,6 +1808,7 @@ def synchronize_e_invoice(doc):
 @frappe.whitelist()
 def get_weekly_sales():
     companies = get_allowed_companies()
+    currency_symbol = get_currency_symbol(companies)
 
     today = date.today()
 
@@ -1856,7 +1857,10 @@ def get_weekly_sales():
             }
         )
 
-    return data
+    return {
+        "currency_symbol": currency_symbol,
+        "data": data,
+    }
 
 def get_allowed_companies():
     """
@@ -1878,6 +1882,32 @@ def get_allowed_companies():
 
     return companies
 
+def get_currency_symbol(companies):
+    """
+    Returns the currency symbol of the first allowed company.
+    Falls back to the currency code if symbol is not configured.
+    """
+    if not companies:
+        return ""
+
+    company = companies[0]
+
+    currency = frappe.db.get_value(
+        "Company",
+        company,
+        "default_currency"
+    )
+
+    if not currency:
+        return ""
+
+    symbol = frappe.db.get_value(
+        "Currency",
+        currency,
+        "symbol"
+    )
+
+    return symbol or currency
 
 def get_day_sales(posting_date, companies):
     """
@@ -1906,6 +1936,7 @@ def get_day_sales(posting_date, companies):
 @frappe.whitelist()
 def get_monthly_sales():
     companies = get_allowed_companies()
+    currency_symbol = get_currency_symbol(companies)
 
     current_year = date.today().year
     last_year = current_year - 1
@@ -1937,13 +1968,13 @@ def get_monthly_sales():
         this_year = get_month_sales(
             year=current_year,
             month=month_number,
-            companies=companies
+            companies=companies,
         )
 
         previous_year = get_month_sales(
             year=last_year,
             month=month_number,
-            companies=companies
+            companies=companies,
         )
 
         growth_amount = this_year - previous_year
@@ -1951,21 +1982,26 @@ def get_monthly_sales():
         if previous_year > 0:
             growth_percent = round(
                 (growth_amount / previous_year) * 100,
-                2
+                2,
             )
         else:
             growth_percent = None
 
-        data.append({
-            "month": month_name,
-            "this_year": this_year,
-            "last_year": previous_year,
-            "growth_amount": growth_amount,
-            "growth_percent": growth_percent,
-        })
+        data.append(
+            {
+                "month": month_name,
+                "this_year": this_year,
+                "last_year": previous_year,
+                "growth_amount": growth_amount,
+                "growth_percent": growth_percent,
+            }
+        )
 
-    return data
-
+    return {
+        "currency_symbol": currency_symbol,
+        "data": data,
+    }
+	
 def get_month_sales(year, month, companies):
     result = frappe.db.sql(
         """
