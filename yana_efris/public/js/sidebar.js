@@ -14,6 +14,58 @@ function hide_frappe_workspaces() {
 		.hide();
 }
 
+const MENU_ROLE_MAP = {
+	"Item Master": ["Item Manager", "Stock User", "Stock Manager"],
+
+	Inventory: ["Stock User", "Stock Manager"],
+
+	Purchase: ["Purchase User", "Purchase Manager", "Purchase Master Manager"],
+
+	Sale: ["Sales User", "Sales Manager", "Sales Master Manager"],
+
+	Accounting: ["Accounts User", "Accounts Manager"],
+
+	Costing: ["Accounts User", "Accounts Manager"],
+
+	Banking: ["Accounts User", "Accounts Manager"],
+
+	"Multi Currency": ["Accounts User", "Accounts Manager"],
+
+	Manufacturing: ["Manufacturing User", "Manufacturing Manager"],
+
+	CRM: ["Sales User", "Sales Manager", "Sales Master Manager"],
+
+	Projects: ["Projects User", "Projects Manager"],
+
+	"Subscription Management": ["System Manager"],
+
+	Payments: ["Accounts User", "Accounts Manager"],
+
+	Assets: ["Accounts User", "Accounts Manager"],
+
+	"HR & Payroll": ["HR User", "HR Manager"],
+
+	Reports: ["Report Manager"],
+
+	Utilities: ["System Manager"],
+};
+
+function has_menu_access(menuTitle) {
+	// System Manager sees everything
+	if (frappe.user_roles.includes("System Manager")) {
+		return true;
+	}
+
+	const allowedRoles = MENU_ROLE_MAP[menuTitle];
+
+	// If no mapping exists, show menu
+	if (!allowedRoles) {
+		return true;
+	}
+
+	return allowedRoles.some((role) => frappe.user_roles.includes(role));
+}
+
 const CUSTOM_MENUS = [
 	{
 		title: "Item Master",
@@ -255,6 +307,9 @@ $(document).ready(function () {
 	}
 
 	function create_home_link(label, link, icon) {
+		// if (!has_menu_access(label) && label !== "Dashboard") {
+		// 	return "";
+		// }
 		return `
 	<div class="sidebar-item-container is-draggable"
 		 data-custom-sidebar="1"
@@ -276,6 +331,9 @@ $(document).ready(function () {
 	}
 
 	function create_menu_group(menu) {
+		// if (!has_menu_access(menu.title)) {
+		// 	return "";
+		// }
 		const children = menu.items.map((item) => create_sidebar_item(menu.title, item)).join("");
 
 		return `
