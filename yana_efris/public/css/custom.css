@@ -347,3 +347,7 @@ ul#navbar-breadcrumbs{
 .sidebar-item-container[item-name="POSNext"] {
     display: none !important;
 }
+
+#toolbar-user .login-to-fc {
+    display: none !important;
+}
