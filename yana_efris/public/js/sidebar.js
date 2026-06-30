@@ -29,7 +29,7 @@ const MENU_ROLE_MAP = {
 
 	Banking: ["Accounts User", "Accounts Manager"],
 
-	"Multi Currency": ["Accounts User", "Accounts Manager"],
+	"Multi Currency": ["Accounts User", "Accounts Manager", "Sales User", "Sales Manager"],
 
 	Manufacturing: ["Manufacturing User", "Manufacturing Manager"],
 
@@ -39,7 +39,7 @@ const MENU_ROLE_MAP = {
 
 	"Subscription Management": ["System Manager"],
 
-	Payments: ["Accounts User", "Accounts Manager"],
+	Payments: ["Accounts User", "Accounts Manager", "Sales User", "Sales Manager"],
 
 	Assets: ["Accounts User", "Accounts Manager"],
 
