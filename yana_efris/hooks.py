@@ -54,9 +54,9 @@ doc_events = {
     # "Sales Invoice": {
     #     "autoname": "yana_efris.utils.custom_naming.custom_autoname",
     # },
-    # "*":  {
-    #     "autoname": "yana_efris.utils.custom_naming.set_manual_name"
-    # }
+    "*":  {
+        "autoname": "yana_efris.utils.custom_naming.set_manual_name"
+    }
     # "POS Invoice": {
     #     "on_submit": "yana_efris.events.pos_invoice.create_sales_invoice_from_pos"
     # }
