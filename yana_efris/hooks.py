@@ -32,7 +32,7 @@ app_include_js = [
     # "/assets/yana_efris/js/override_help.js"
 ]
 
-company_data_to_be_ignored = ["E Invoicing Settings", "E Invoice"]
+company_data_to_be_ignored = ["E Invoicing Settings", "E Invoice", "EFRIS Sync Progress"]
 
 # app_include_css = "/assets/yana_efris/css/custom.css"
 
@@ -51,12 +51,12 @@ fixtures = [
 ]
 
 doc_events = {
-    "Sales Invoice": {
-        "autoname": "yana_efris.utils.custom_naming.custom_autoname",
-    },
-    "*":  {
-        "autoname": "yana_efris.utils.custom_naming.set_manual_name"
-    }
+    # "Sales Invoice": {
+    #     "autoname": "yana_efris.utils.custom_naming.custom_autoname",
+    # },
+    # "*":  {
+    #     "autoname": "yana_efris.utils.custom_naming.set_manual_name"
+    # }
     # "POS Invoice": {
     #     "on_submit": "yana_efris.events.pos_invoice.create_sales_invoice_from_pos"
     # }
