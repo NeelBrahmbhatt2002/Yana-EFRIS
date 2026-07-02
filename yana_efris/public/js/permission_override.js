@@ -66,8 +66,8 @@ frappe.after_ajax(function () {
 				console.groupEnd();
 
 				return original_msgprint({
-					title: "Subscription Required",
-					message: "Please take subscription to get the access of this module",
+					title: "Access Denied - Contact Admin",
+					message: "Access Denied - Contact Admin to get the access of this module",
 					indicator: "orange",
 				});
 			}
@@ -91,8 +91,8 @@ frappe.after_ajax(function () {
 				console.groupEnd();
 
 				return original_msgprint({
-					title: "Subscription Required",
-					message: "Please take subscription to get the access of this report",
+					title: "Access Denied - Contact Admin",
+					message: "Access Denied - Contact Admin to get the access of this report",
 					indicator: "orange",
 				});
 			}
