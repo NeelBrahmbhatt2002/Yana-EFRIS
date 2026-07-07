@@ -626,7 +626,7 @@ def create_stock_reconciliation_for_item(item_code, qty, rate, company_name):
         stock_recon.company = company_name
         stock_recon.posting_date = now_datetime()
         stock_recon.set_posting_time = 1
-        stock_recon.purpose = "Stock Reconciliation"
+        stock_recon.purpose = "Opening Stock"
         stock_recon.custom_stock_movement_description = f"Auto-created from EFRIS Item Sync for {item_code}"
 
         stock_recon.append("items", {
