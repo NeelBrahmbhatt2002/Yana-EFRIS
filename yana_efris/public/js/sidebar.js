@@ -416,7 +416,7 @@ $(document).ready(function () {
 				return;
 			}
 
-			$public_section.append(create_home_link("Dashboard", "/app/home", "dashboard"));
+			$public_section.append(create_home_link("My Workspace", "/app/home", "dashboard"));
 
 			CUSTOM_MENUS.forEach((menu) => {
 				$public_section.append(create_menu_group(menu));
