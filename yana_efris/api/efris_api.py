@@ -1777,13 +1777,39 @@ def get_weekly_sales():
         "data": data,
     }
 
+# def get_allowed_companies():
+#     """
+#     Returns companies allowed for the current user.
+#     If no Company User Permissions exist (e.g. Administrator),
+#     return all companies.
+#     """
+#     companies = frappe.get_all(
+#         "User Permission",
+#         filters={
+#             "user": frappe.session.user,
+#             "allow": "Company",
+#         },
+#         pluck="for_value",
+#     )
+
+#     if not companies:
+#         companies = frappe.get_all("Company", pluck="name")
+
+#     return companies
+
 def get_allowed_companies():
     """
-    Returns companies allowed for the current user.
-    If no Company User Permissions exist (e.g. Administrator),
-    return all companies.
+    Returns the active company for the current user.
+
+    If the user has multiple allowed companies, the current
+    default company is returned.
+
+    If no User Permissions exist (Administrator), the current
+    default company is returned. If no default company exists,
+    all companies are returned as a fallback.
     """
-    companies = frappe.get_all(
+
+    allowed_companies = frappe.get_all(
         "User Permission",
         filters={
             "user": frappe.session.user,
@@ -1792,10 +1818,24 @@ def get_allowed_companies():
         pluck="for_value",
     )
 
-    if not companies:
-        companies = frappe.get_all("Company", pluck="name")
+    active_company = frappe.defaults.get_user_default("company")
 
-    return companies
+    # User has Company User Permissions
+    if allowed_companies:
+
+        # Active company is one of the allowed companies
+        if active_company and active_company in allowed_companies:
+            return [active_company]
+
+        # Fallback to first allowed company
+        return [allowed_companies[0]]
+
+    # Administrator / no company restrictions
+    if active_company:
+        return [active_company]
+
+    # Final fallback
+    return frappe.get_all("Company", pluck="name")
 
 def get_currency_symbol(companies):
     """
@@ -1832,7 +1872,7 @@ def get_day_sales(posting_date, companies):
     result = frappe.db.sql(
         """
         SELECT
-            COALESCE(SUM(base_grand_total), 0)
+            COALESCE(SUM(base_net_total), 0)
         FROM `tabSales Invoice`
         WHERE
             docstatus = 1
@@ -1873,12 +1913,12 @@ def get_monthly_sales():
 
     data = []
 
-    current_month = date.today().month
+    # current_month = date.today().month
 
     for month_number, month_name in enumerate(months, start=1):
 
-        if month_number > current_month:
-            break
+        # if month_number > current_month:
+        #     break
 
         this_year = get_month_sales(
             year=current_year,
@@ -1921,7 +1961,7 @@ def get_month_sales(year, month, companies):
     result = frappe.db.sql(
         """
         SELECT
-            COALESCE(SUM(base_grand_total), 0)
+            COALESCE(SUM(base_net_total), 0)
         FROM `tabSales Invoice`
         WHERE
             docstatus = 1
@@ -1938,3 +1978,86 @@ def get_month_sales(year, month, companies):
     )
 
     return float(result[0][0] or 0)
+
+@frappe.whitelist()
+def get_sales_dashboard_kpis():
+    companies = get_allowed_companies()
+    currency_symbol = get_currency_symbol(companies)
+
+    return {
+        "currency_symbol": currency_symbol,
+        "open_quotations": get_open_quotation_kpi(companies),
+        "open_sales_orders": get_open_sales_order_kpi(companies),
+        "unpaid_sales_invoices": get_unpaid_sales_invoice_kpi(companies),
+    }
+
+def get_open_quotation_kpi(companies):
+    result = frappe.db.sql(
+        """
+        SELECT
+            COUNT(name),
+            COALESCE(SUM(base_net_total), 0)
+        FROM `tabQuotation`
+        WHERE
+            docstatus = 1
+            AND status = 'Open'
+            AND company IN %(companies)s
+        """,
+        {
+            "companies": tuple(companies),
+        },
+    )
+
+    return {
+        "count": result[0][0] or 0,
+        "amount": float(result[0][1] or 0),
+    }
+
+def get_open_sales_order_kpi(companies):
+    result = frappe.db.sql(
+        """
+        SELECT
+            COUNT(name),
+            COALESCE(SUM(base_net_total), 0)
+        FROM `tabSales Order`
+        WHERE
+            docstatus = 1
+            AND status IN (
+                'To Deliver',
+                'To Bill',
+                'To Deliver and Bill'
+            )
+            AND company IN %(companies)s
+        """,
+        {
+            "companies": tuple(companies),
+        },
+    )
+
+    return {
+        "count": result[0][0] or 0,
+        "amount": float(result[0][1] or 0),
+    }
+
+def get_unpaid_sales_invoice_kpi(companies):
+    result = frappe.db.sql(
+        """
+        SELECT
+            COUNT(name),
+            COALESCE(SUM(base_net_total), 0)
+        FROM `tabSales Invoice`
+        WHERE
+            docstatus = 1
+            AND status IN ('Unpaid', 'Overdue')
+            AND company IN %(companies)s
+            AND IFNULL(is_return, 0) = 0
+        """,
+        {
+            "companies": tuple(companies),
+        },
+    )
+
+    return {
+        "count": result[0][0] or 0,
+        "amount": float(result[0][1] or 0),
+    }
