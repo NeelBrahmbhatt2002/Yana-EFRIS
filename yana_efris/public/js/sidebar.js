@@ -103,7 +103,7 @@ const CUSTOM_MENUS = [
 		title: "Sale",
 		icon: "star",
 		items: [
-			{ label: "Sales Dashboard", link: "/app/sales-dashboard", icon: "" },
+			// { label: "Sales Dashboard", link: "/app/sales-dashboard", icon: "" },
 			{ label: "Point of Sale", link: "/pos", icon: "" },
 			{ label: "Customers", link: "/app/customer", icon: "" },
 			{ label: "Quotes", link: "/app/quotation", icon: "" },
