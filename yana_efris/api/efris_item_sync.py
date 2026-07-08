@@ -589,22 +589,37 @@ def create_simple_item(rec, company_name):
     # ----------------------------------------------------------------------
     # 1️⃣2️⃣ Stock Reconciliation (opening stock)
     # ----------------------------------------------------------------------
-    if stock_unit > 0:
-        # frappe.log_error(
-        #     f"Creating Stock Reconciliation: item={item_docname}, qty={stock_unit}, rate={selling_rate}",
-        #     "Page Skip Debug"
-        # )
-        create_stock_reconciliation_for_item(item.name, stock_unit, selling_rate, company_name)
+    # if stock_unit > 0:
+    #     frappe.log_error(
+    #         f"Creating Stock Reconciliation: item={item_docname}, qty={stock_unit}, rate={selling_rate}",
+    #         "Page Skip Debug"
+    #     )
+    #     create_stock_reconciliation_for_item(item.name, stock_unit, selling_rate, company_name)
 
     return True
 
 def create_stock_reconciliation_for_item(item_code, qty, rate, company_name):
     """Creates a Stock Reconciliation document for a single item."""
     try:
+        frappe.log_error(
+            f"===== STOCK RECON START ===== item={item_code}, qty={qty}, rate={rate}, company={company_name}",
+            "SR DEBUG"
+        )
         # 1️⃣ Get company abbreviation
         company_abbr = frappe.db.get_value("Company", company_name, "abbr")
         if not company_abbr:
             frappe.log_error(f"Company abbreviation not found for {company_name}", "Page Skip Debug")
+            return
+        
+        # Construct Temporary Opening account
+        difference_account = f"Temporary Opening - {company_abbr}"
+
+        # Verify account exists
+        if not frappe.db.exists("Account", difference_account):
+            frappe.log_error(
+                f"Difference Account '{difference_account}' not found.",
+                "SR DEBUG"
+            )
             return
 
         # 2️⃣ Construct expected warehouse name: "Stores - ABBR"
@@ -627,6 +642,7 @@ def create_stock_reconciliation_for_item(item_code, qty, rate, company_name):
         stock_recon.posting_date = now_datetime()
         stock_recon.set_posting_time = 1
         stock_recon.purpose = "Opening Stock"
+        stock_recon.expense_account = difference_account
         stock_recon.custom_stock_movement_description = f"Auto-created from EFRIS Item Sync for {item_code}"
 
         stock_recon.append("items", {
