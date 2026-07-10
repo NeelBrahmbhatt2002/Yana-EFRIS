@@ -205,7 +205,7 @@ const CUSTOM_MENUS_1 = [
 		],
 	},
 	{
-		title: "Subscription Management",
+		title: "Subscription",
 		icon: "tag",
 		items: [
 			{ label: "Subscription Plan", link: "/app/subscription-plan", icon: "" },
