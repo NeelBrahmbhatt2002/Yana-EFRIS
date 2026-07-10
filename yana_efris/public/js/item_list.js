@@ -1,11 +1,12 @@
 frappe.listview_settings["Item"] = {
+	hide_name_column: true,
 	onload(listview) {
 		if (frappe.user.has_role("System Manager")) {
 			frappe.db
 				.get_value(
 					"User Permission",
 					{ user: frappe.session.user, allow: "Company" },
-					"for_value"
+					"for_value",
 				)
 				.then((res) => {
 					const company_name = res?.message?.for_value;
@@ -14,7 +15,7 @@ frappe.listview_settings["Item"] = {
 						frappe.msgprint({
 							title: __("No Company Assigned"),
 							message: __(
-								"You do not have a company assigned in your User Permissions."
+								"You do not have a company assigned in your User Permissions.",
 							),
 							indicator: "red",
 						});
@@ -37,7 +38,7 @@ frappe.listview_settings["Item"] = {
 										title: __("EFRIS Sync Started"),
 										indicator: "green",
 										message: __(
-											`EFRIS sync started for <b>${company_name}</b>. Please refresh after a few minutes.`
+											`EFRIS sync started for <b>${company_name}</b>. Please refresh after a few minutes.`,
 										),
 									});
 								}

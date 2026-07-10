@@ -351,3 +351,23 @@ ul#navbar-breadcrumbs{
 #toolbar-user .login-to-fc {
     display: none !important;
 }
+
+.yana-left-back,.yana-left-form-back {
+	margin-right: 12px;
+}
+
+.yana-back-text {
+    display: inline;
+}
+
+@media (max-width: 768px) {
+    .yana-back-text {
+        display: none;
+    }
+
+    .yana-left-back,
+    .yana-left-form-back {
+        min-width: auto;
+        padding: 4px 8px;
+    }
+}
