@@ -354,6 +354,8 @@ ul#navbar-breadcrumbs{
 
 .yana-left-back,.yana-left-form-back {
 	margin-right: 12px;
+  background-color: #005BBB !important;
+  color: #FFFFFF !important;
 }
 
 .yana-back-text {
@@ -370,4 +372,8 @@ ul#navbar-breadcrumbs{
         min-width: auto;
         padding: 4px 8px;
     }
+}
+
+.widget.links-widget-box .link-item:first-child{
+  margin-top: 5px !important;
 }
