@@ -151,6 +151,21 @@ frappe.ui.form.on("Sales Invoice", {
 	// 	}, 2000);
 	// },
 	refresh: async function (frm) {
+		console.log("Client Script Executed");
+
+		if (frm.doc.items?.length) {
+			let sales_order = frm.doc.items[0].sales_order;
+			console.log("Sales Order:", sales_order);
+
+			frappe.db.get_value("Sales Order", sales_order, "efris_payment_mode").then((r) => {
+				console.log("Fetched:", r.message);
+
+				if (r.message?.efris_payment_mode) {
+					frm.set_value("efris_payment_mode", r.message.efris_payment_mode);
+					console.log("Value Set");
+				}
+			});
+		}
 		// Give Uganda Compliance time to add its button
 		setTimeout(async () => {
 			// Remove original Uganda Compliance button
