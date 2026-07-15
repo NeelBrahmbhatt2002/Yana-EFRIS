@@ -377,3 +377,7 @@ ul#navbar-breadcrumbs{
 .widget.links-widget-box .link-item:first-child{
   margin-top: 5px !important;
 }
+
+.chat-navbar-icon{
+  display: none !important;
+}
