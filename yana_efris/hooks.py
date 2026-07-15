@@ -22,12 +22,12 @@ doctype_js = {
 app_include_js = [
     "/assets/yana_efris/js/exchange_rate_common.js?v=1",
     # "/assets/yana_efris/js/report_auto_company.js",
-    "/assets/yana_efris/js/sidebar.js?v=2.0.6",
+    "/assets/yana_efris/js/sidebar.js?v=2.0.7",
     "/assets/yana_efris/js/open_doctype_new_tab.js",
     "/assets/yana_efris/js/permission_override.js?v=0.0.1",
     "/assets/yana_efris/js/bank_reconciliation_tool.js",
     "/assets/yana_efris/js/print_override.js",
-    "/assets/yana_efris/js/navigation.js",
+    "/assets/yana_efris/js/navigation.js?v=0.0.1",
     "/assets/yana_efris/js/company_switcher.js?v=0.1",
     # "/assets/yana_efris/js/set_company_logo.js"
     # "/assets/yana_efris/js/override_help.js"

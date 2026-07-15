@@ -5,10 +5,10 @@ const module_map = {
 	"Delivery Note": "sales-dashboard",
 	Customer: "sales-dashboard",
 
-	"Purchase Order": "purchase-dashboard",
-	"Purchase Invoice": "purchase-dashboard",
-	Supplier: "purchase-dashboard",
-	"Purchase Receipts": "purchase-dashboard",
+	// "Purchase Order": "purchase-dashboard",
+	// "Purchase Invoice": "purchase-dashboard",
+	// Supplier: "purchase-dashboard",
+	// "Purchase Receipts": "purchase-dashboard",
 
 	// Item: "home",
 	// "Stock Entry": "home",
