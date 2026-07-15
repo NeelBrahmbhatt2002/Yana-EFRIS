@@ -92,7 +92,7 @@ const CUSTOM_MENUS = [
 		title: "Purchase",
 		icon: "buying",
 		items: [
-			{ label: "Purchase Dashboard", link: "/app/purchase-dashboard", icon: "" },
+			// { label: "Purchase Dashboard", link: "/app/purchase-dashboard", icon: "" },
 			{ label: "Suppliers", link: "/app/supplier", icon: "" },
 			{ label: "Purchase Orders", link: "/app/purchase-order", icon: "" },
 			{ label: "Purchase Invoices", link: "/app/purchase-invoice", icon: "" },
