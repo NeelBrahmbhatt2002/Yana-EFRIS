@@ -447,8 +447,25 @@ frappe.ui.form.on("Sales Invoice", {
 	},
 });
 
+function update_items_label(frm) {
+	let note = frm.doc.custom_note || "";
+	let label = note ? `Items (${note})` : "Items";
+
+	const controlLabel = frm.fields_dict.items.wrapper
+		.closest(".frappe-control")
+		?.querySelector(".control-label");
+
+	if (controlLabel) {
+		controlLabel.textContent = label;
+	}
+}
+
 frappe.ui.form.on("Sales Invoice", {
+	company(frm) {
+		update_items_label(frm);
+	},
 	refresh(frm) {
+		update_items_label(frm);
 		console.log("[EFRIS] refresh() triggered");
 
 		// Skip EFRIS calls when opening an old Sales Invoice
