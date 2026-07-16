@@ -381,3 +381,12 @@ ul#navbar-breadcrumbs{
 .chat-navbar-icon{
   display: none !important;
 }
+
+button[data-original-title="Print"] {
+    background: #FFC107  !important;
+    color: #fff !important;
+    /* border-color: #0d6efd !important; */
+}
+
+
+
