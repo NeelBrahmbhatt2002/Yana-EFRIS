@@ -81,7 +81,7 @@ const CUSTOM_MENUS = [
 		title: "Inventory",
 		icon: "stock",
 		items: [
-			{ label: "Stock Ledger", link: "/app/stock-ledger", icon: "" },
+			{ label: "Stock Ledger", link: "/app/stock-ledger-entry", icon: "" },
 			{ label: "Stock Entry", link: "/app/stock-entry", icon: "" },
 			{ label: "Inventory Adjustments", link: "/app/stock-reconciliation", icon: "" },
 			{ label: "Packages", link: "/app/package", icon: "" },
