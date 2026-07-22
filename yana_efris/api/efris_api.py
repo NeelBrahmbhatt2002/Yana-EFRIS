@@ -2098,6 +2098,8 @@ def add_open_quotation_summary(summary, companies):
             docstatus = 1
             AND status = 'Open'
             AND company IN %(companies)s
+            AND custom_sales_person_name IS NOT NULL
+            AND custom_sales_person_name != ''
         GROUP BY custom_sales_person_name
         """,
         {
@@ -2130,6 +2132,8 @@ def add_open_sales_order_summary(summary, companies):
                 'To Deliver and Bill'
             )
             AND company IN %(companies)s
+			AND custom_sales_person_name IS NOT NULL
+			AND custom_sales_person_name != ''
         GROUP BY custom_sales_person_name
         """,
         {
