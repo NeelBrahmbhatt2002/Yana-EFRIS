@@ -1,6 +1,6 @@
 import frappe
 from frappe import _
-from frappe.utils import today, getdate
+from frappe.utils import today, getdate,add_days, add_years, flt
 from uganda_compliance.efris.api_classes.e_invoice import EInvoiceAPI
 from uganda_compliance.efris.api_classes.efris_api import make_post
 from uganda_compliance.efris.utils.utils import efris_log_info, efris_log_error
@@ -24,6 +24,7 @@ from frappe.utils.nestedset import get_root_of
 from erpnext.stock.get_item_details import get_conversion_factor
 from frappe.utils.pdf import get_pdf
 from datetime import date, timedelta
+from calendar import monthrange
 
 
 @frappe.whitelist()
@@ -1720,62 +1721,62 @@ def synchronize_e_invoice(doc):
 		einvoice.save()
 		efris_log_info("after save...")
 
-@frappe.whitelist()
-def get_weekly_sales():
-    companies = get_allowed_companies()
-    currency_symbol = get_currency_symbol(companies)
+# @frappe.whitelist()
+# def get_weekly_sales():
+#     companies = get_allowed_companies()
+#     currency_symbol = get_currency_symbol(companies)
 
-    today = date.today()
+#     today = date.today()
 
-    # Current week's Monday
-    current_monday = today - timedelta(days=today.weekday())
+#     # Current week's Monday
+#     current_monday = today - timedelta(days=today.weekday())
 
-    # Previous week's Monday
-    previous_monday = current_monday - timedelta(days=7)
+#     # Previous week's Monday
+#     previous_monday = current_monday - timedelta(days=7)
 
-    days = [
-        "Monday",
-        "Tuesday",
-        "Wednesday",
-        "Thursday",
-        "Friday",
-        "Saturday",
-        "Sunday",
-    ]
+#     days = [
+#         "Monday",
+#         "Tuesday",
+#         "Wednesday",
+#         "Thursday",
+#         "Friday",
+#         "Saturday",
+#         "Sunday",
+#     ]
 
-    data = []
+#     data = []
 
-    for i, day_name in enumerate(days):
-        current_day = current_monday + timedelta(days=i)
-        previous_day = previous_monday + timedelta(days=i)
+#     for i, day_name in enumerate(days):
+#         current_day = current_monday + timedelta(days=i)
+#         previous_day = previous_monday + timedelta(days=i)
 
-        this_week = get_day_sales(current_day, companies)
-        last_week = get_day_sales(previous_day, companies)
+#         this_week = get_day_sales(current_day, companies)
+#         last_week = get_day_sales(previous_day, companies)
 
-        growth_amount = this_week - last_week
+#         growth_amount = this_week - last_week
 
-        if last_week > 0:
-            growth_percent = round(
-                (growth_amount / last_week) * 100,
-                2
-            )
-        else:
-            growth_percent = None
+#         if last_week > 0:
+#             growth_percent = round(
+#                 (growth_amount / last_week) * 100,
+#                 2
+#             )
+#         else:
+#             growth_percent = None
 
-        data.append(
-            {
-                "day": day_name,
-                "this_week": this_week,
-                "last_week": last_week,
-                "growth_amount": growth_amount,
-                "growth_percent": growth_percent,
-            }
-        )
+#         data.append(
+#             {
+#                 "day": day_name,
+#                 "this_week": this_week,
+#                 "last_week": last_week,
+#                 "growth_amount": growth_amount,
+#                 "growth_percent": growth_percent,
+#             }
+#         )
 
-    return {
-        "currency_symbol": currency_symbol,
-        "data": data,
-    }
+#     return {
+#         "currency_symbol": currency_symbol,
+#         "data": data,
+#     }
 
 # def get_allowed_companies():
 #     """
@@ -1888,74 +1889,74 @@ def get_day_sales(posting_date, companies):
 
     return float(result[0][0] or 0)
 
-@frappe.whitelist()
-def get_monthly_sales():
-    companies = get_allowed_companies()
-    currency_symbol = get_currency_symbol(companies)
+# @frappe.whitelist()
+# def get_monthly_sales():
+#     companies = get_allowed_companies()
+#     currency_symbol = get_currency_symbol(companies)
 
-    current_year = date.today().year
-    last_year = current_year - 1
+#     current_year = date.today().year
+#     last_year = current_year - 1
 
-    months = [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December",
-    ]
+#     months = [
+#         "January",
+#         "February",
+#         "March",
+#         "April",
+#         "May",
+#         "June",
+#         "July",
+#         "August",
+#         "September",
+#         "October",
+#         "November",
+#         "December",
+#     ]
 
-    data = []
+#     data = []
 
-    # current_month = date.today().month
+#     # current_month = date.today().month
 
-    for month_number, month_name in enumerate(months, start=1):
+#     for month_number, month_name in enumerate(months, start=1):
 
-        # if month_number > current_month:
-        #     break
+#         # if month_number > current_month:
+#         #     break
 
-        this_year = get_month_sales(
-            year=current_year,
-            month=month_number,
-            companies=companies,
-        )
+#         this_year = get_month_sales(
+#             year=current_year,
+#             month=month_number,
+#             companies=companies,
+#         )
 
-        previous_year = get_month_sales(
-            year=last_year,
-            month=month_number,
-            companies=companies,
-        )
+#         previous_year = get_month_sales(
+#             year=last_year,
+#             month=month_number,
+#             companies=companies,
+#         )
 
-        growth_amount = this_year - previous_year
+#         growth_amount = this_year - previous_year
 
-        if previous_year > 0:
-            growth_percent = round(
-                (growth_amount / previous_year) * 100,
-                2,
-            )
-        else:
-            growth_percent = None
+#         if previous_year > 0:
+#             growth_percent = round(
+#                 (growth_amount / previous_year) * 100,
+#                 2,
+#             )
+#         else:
+#             growth_percent = None
 
-        data.append(
-            {
-                "month": month_name,
-                "this_year": this_year,
-                "last_year": previous_year,
-                "growth_amount": growth_amount,
-                "growth_percent": growth_percent,
-            }
-        )
+#         data.append(
+#             {
+#                 "month": month_name,
+#                 "this_year": this_year,
+#                 "last_year": previous_year,
+#                 "growth_amount": growth_amount,
+#                 "growth_percent": growth_percent,
+#             }
+#         )
 
-    return {
-        "currency_symbol": currency_symbol,
-        "data": data,
-    }
+#     return {
+#         "currency_symbol": currency_symbol,
+#         "data": data,
+#     }
 	
 def get_month_sales(year, month, companies):
     result = frappe.db.sql(
@@ -2060,4 +2061,306 @@ def get_unpaid_sales_invoice_kpi(companies):
     return {
         "count": result[0][0] or 0,
         "amount": float(result[0][1] or 0),
+    }
+
+@frappe.whitelist()
+def get_salesperson_summary():
+    companies = get_allowed_companies()
+    currency_symbol = get_currency_symbol(companies)
+    salesperson_totals = get_salesperson_totals(companies)
+
+    summary = {}
+
+    add_open_quotation_summary(summary, companies)
+    add_open_sales_order_summary(summary, companies)
+
+    invoice_summary = get_unpaid_sales_invoice_kpi(companies)
+
+    rows = sorted(summary.values(), key=lambda x: x["sales_person"])
+
+    return {
+        "currency_symbol": currency_symbol,
+        "rows": rows,
+        "totals": salesperson_totals,
+        "invoice_total": invoice_summary,
+    }
+
+def add_open_quotation_summary(summary, companies):
+
+    result = frappe.db.sql(
+        """
+        SELECT
+            custom_sales_person_name,
+            COUNT(name),
+            COALESCE(SUM(base_net_total), 0)
+        FROM `tabQuotation`
+        WHERE
+            docstatus = 1
+            AND status = 'Open'
+            AND company IN %(companies)s
+        GROUP BY custom_sales_person_name
+        """,
+        {
+            "companies": tuple(companies),
+        },
+    )
+
+    for sales_person, count, amount in result:
+
+        if sales_person not in summary:
+            summary[sales_person] = get_empty_row(sales_person)
+
+        summary[sales_person]["quotation_count"] = count
+        summary[sales_person]["quotation_amount"] = float(amount or 0)
+
+def add_open_sales_order_summary(summary, companies):
+
+    result = frappe.db.sql(
+        """
+        SELECT
+            custom_sales_person_name,
+            COUNT(name),
+            COALESCE(SUM(base_net_total), 0)
+        FROM `tabSales Order`
+        WHERE
+            docstatus = 1
+            AND status IN (
+                'To Deliver',
+                'To Bill',
+                'To Deliver and Bill'
+            )
+            AND company IN %(companies)s
+        GROUP BY custom_sales_person_name
+        """,
+        {
+            "companies": tuple(companies),
+        },
+    )
+
+    for sales_person, count, amount in result:
+
+        if sales_person not in summary:
+            summary[sales_person] = get_empty_row(sales_person)
+
+        summary[sales_person]["sales_order_count"] = count
+        summary[sales_person]["sales_order_amount"] = float(amount or 0)
+
+def get_salesperson_totals(companies):
+
+    quotation = frappe.db.sql(
+        """
+        SELECT
+            COUNT(name),
+            COALESCE(SUM(base_net_total), 0)
+        FROM `tabQuotation`
+        WHERE
+            docstatus = 1
+            AND status = 'Open'
+            AND company IN %(companies)s
+        """,
+        {
+            "companies": tuple(companies),
+        },
+    )[0]
+
+    sales_order = frappe.db.sql(
+        """
+        SELECT
+            COUNT(name),
+            COALESCE(SUM(base_net_total), 0)
+        FROM `tabSales Order`
+        WHERE
+            docstatus = 1
+            AND status IN (
+                'To Deliver',
+                'To Bill',
+                'To Deliver and Bill'
+            )
+            AND company IN %(companies)s
+        """,
+        {
+            "companies": tuple(companies),
+        },
+    )[0]
+
+    return {
+        "quotation_count": quotation[0] or 0,
+        "quotation_amount": flt(quotation[1]),
+
+        "sales_order_count": sales_order[0] or 0,
+        "sales_order_amount": flt(sales_order[1]),
+    }
+
+def get_empty_row(sales_person):
+
+    return {
+        "sales_person": sales_person,
+
+        "quotation_count": 0,
+        "quotation_amount": 0,
+
+        "sales_order_count": 0,
+        "sales_order_amount": 0,
+    }
+
+@frappe.whitelist()
+def get_sales_comparison():
+
+    companies = get_allowed_companies()
+    company = companies[0]
+
+    currency_symbol = get_currency_symbol(companies)
+    fiscal_year = get_company_fiscal_year(company)
+
+    return {
+        "currency_symbol": currency_symbol,
+        "financial_year": fiscal_year["display_name"],
+
+        "daily": get_daily_sales(company),
+        "weekly": get_weekly_sales(company),
+        "monthly": get_monthly_sales(company),
+        "yearly": get_yearly_sales(company, fiscal_year)
+    }
+
+
+def get_company_fiscal_year(company):
+    today = getdate()
+
+    fiscal_year = frappe.db.sql(
+        """
+        SELECT
+            fy.name,
+            fy.year_start_date,
+            fy.year_end_date
+        FROM `tabFiscal Year` fy
+        INNER JOIN `tabFiscal Year Company` fyc
+            ON fy.name = fyc.parent
+        WHERE
+            fy.disabled = 0
+            AND fyc.company = %s
+            AND %s BETWEEN fy.year_start_date AND fy.year_end_date
+        LIMIT 1
+        """,
+        (
+            company,
+            today,
+        ),
+        as_dict=True,
+    )
+
+    if not fiscal_year:
+        frappe.throw(
+            _("No active Fiscal Year found for company {0}.").format(company)
+        )
+
+    fiscal_year = fiscal_year[0]
+
+    start_year = fiscal_year.year_start_date.year
+    end_year = fiscal_year.year_end_date.year % 100
+
+    fiscal_year["display_name"] = f"FY {start_year}-{end_year:02d}"
+
+    return fiscal_year
+
+def get_sales_amount(company, from_date, to_date):
+
+    amount = frappe.db.sql(
+        """
+        SELECT
+            COALESCE(SUM(base_net_total), 0)
+        FROM `tabSales Invoice`
+        WHERE
+            docstatus = 1
+            AND company = %s
+            AND posting_date BETWEEN %s AND %s
+        """,
+        (
+            company,
+            from_date,
+            to_date
+        )
+    )[0][0]
+
+    return flt(amount)
+
+def get_daily_sales(company):
+
+    today = getdate()
+    yesterday = add_days(today, -1)
+
+    return {
+        "current": get_sales_amount(
+            company,
+            today,
+            today
+        ),
+        "previous": get_sales_amount(
+            company,
+            yesterday,
+            yesterday
+        )
+    }
+
+def get_weekly_sales(company):
+
+    today = getdate()
+
+    current_week_start = add_days(today, -today.weekday())
+    previous_week_start = add_days(current_week_start, -7)
+    previous_week_end = add_days(current_week_start, -1)
+
+    return {
+        "current": get_sales_amount(
+            company,
+            current_week_start,
+            today
+        ),
+        "previous": get_sales_amount(
+            company,
+            previous_week_start,
+            previous_week_end
+        )
+    }
+
+def get_monthly_sales(company):
+
+    today = getdate()
+
+    current_month_start = today.replace(day=1)
+
+    previous_month_end = current_month_start - timedelta(days=1)
+    previous_month_start = previous_month_end.replace(day=1)
+
+    return {
+        "current": get_sales_amount(
+            company,
+            current_month_start,
+            today
+        ),
+        "previous": get_sales_amount(
+            company,
+            previous_month_start,
+            previous_month_end
+        )
+    }
+
+def get_yearly_sales(company, fiscal_year):
+
+    current_start = fiscal_year["year_start_date"]
+    current_end = getdate()
+
+    previous_start = add_years(current_start, -1)
+    previous_end = add_days(current_start, -1)
+
+    return {
+        "current": get_sales_amount(
+            company,
+            current_start,
+            current_end
+        ),
+        "previous": get_sales_amount(
+            company,
+            previous_start,
+            previous_end
+        )
     }
