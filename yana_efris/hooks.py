@@ -63,6 +63,10 @@ doc_events = {
     # }
 }
 
+standard_queries = {
+    "Item": "yana_efris.api.efris_api.item_query"
+}
+
 # yana_efris/hooks.py
 
 override_whitelisted_methods = {
