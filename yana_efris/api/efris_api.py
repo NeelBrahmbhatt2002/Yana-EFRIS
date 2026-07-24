@@ -2368,3 +2368,247 @@ def get_yearly_sales(company, fiscal_year):
             previous_end
         )
     }
+
+# @frappe.whitelist()
+# def get_top_customer_product():
+#     companies = get_allowed_companies()
+
+#     if not companies:
+#         return {"rows": []}
+
+#     company = companies[0]
+
+#     fiscal_year = get_company_fiscal_year(company)
+#     from_date = fiscal_year["year_start_date"]
+#     to_date = getdate()
+
+#     company_revenue = get_sales_amount(company, from_date, to_date)
+
+#     customers = frappe.db.sql("""
+#         SELECT
+#             si.customer,
+#             c.customer_name,
+#             SUM(si.base_net_total) AS revenue
+#         FROM `tabSales Invoice` si
+#         INNER JOIN `tabCustomer` c
+#             ON c.name = si.customer
+#         WHERE
+#             si.docstatus = 1
+#             AND si.company = %s
+#             AND si.posting_date BETWEEN %s AND %s
+#         GROUP BY si.customer, c.customer_name
+#         ORDER BY revenue DESC
+#         LIMIT 10
+#     """, (company, from_date, to_date), as_dict=True)
+
+#     products = frappe.db.sql("""
+#         SELECT
+#             sii.item_code,
+#             sii.item_name,
+#             SUM(sii.base_net_amount) AS revenue
+#         FROM `tabSales Invoice Item` sii
+#         INNER JOIN `tabSales Invoice` si
+#             ON si.name = sii.parent
+#         WHERE
+#             si.docstatus = 1
+#             AND si.company = %s
+#             AND si.posting_date BETWEEN %s AND %s
+#         GROUP BY sii.item_code, sii.item_name
+#         ORDER BY revenue DESC
+#         LIMIT 10
+#     """, (company, from_date, to_date), as_dict=True)
+
+#     rows = []
+
+#     max_rows = max(len(customers), len(products))
+
+#     for i in range(max_rows):
+#         customer = customers[i] if i < len(customers) else {}
+#         product = products[i] if i < len(products) else {}
+
+#         customer_revenue = customer.get("revenue") or 0
+#         product_revenue = product.get("revenue") or 0
+
+#         rows.append({
+#             "customer": customer.get("customer_name", ""),
+#             "customer_percentage": round(
+#                 (customer_revenue / company_revenue) * 100, 2
+#             ) if company_revenue else 0,
+
+#             "product": product.get("item_name", ""),
+#             "product_percentage": round(
+#                 (product_revenue / company_revenue) * 100, 2
+#             ) if company_revenue else 0,
+#         })
+
+#     return {
+#         "rows": rows
+#     }
+
+@frappe.whitelist()
+def get_top_customer_product():
+    companies = get_allowed_companies()
+
+    if not companies:
+        return {"rows": []}
+
+    company = companies[0]
+
+    fiscal_year = get_company_fiscal_year(company)
+    from_date = fiscal_year["year_start_date"]
+    to_date = getdate()
+
+    company_revenue = get_sales_amount(company, from_date, to_date)
+
+    customers = frappe.db.sql("""
+        SELECT
+            si.customer,
+            c.customer_name,
+            SUM(si.base_net_total) AS revenue
+        FROM `tabSales Invoice` si
+        INNER JOIN `tabCustomer` c
+            ON c.name = si.customer
+        WHERE
+            si.docstatus = 1
+            AND si.company = %s
+            AND si.posting_date BETWEEN %s AND %s
+        GROUP BY si.customer, c.customer_name
+        ORDER BY revenue DESC
+        LIMIT 10
+    """, (company, from_date, to_date), as_dict=True)
+
+    products = frappe.db.sql("""
+        SELECT
+            sii.item_code,
+            sii.item_name,
+            SUM(sii.base_net_amount) AS revenue
+        FROM `tabSales Invoice Item` sii
+        INNER JOIN `tabSales Invoice` si
+            ON si.name = sii.parent
+        WHERE
+            si.docstatus = 1
+            AND si.company = %s
+            AND si.posting_date BETWEEN %s AND %s
+        GROUP BY sii.item_code, sii.item_name
+        ORDER BY revenue DESC
+        LIMIT 10
+    """, (company, from_date, to_date), as_dict=True)
+
+    rows = []
+    debug_log = []
+
+    debug_log.append(
+        f"""Company: {company}
+Period: {from_date} to {to_date}
+Company Revenue: {company_revenue}
+
+"""
+    )
+
+    max_rows = max(len(customers), len(products))
+
+    for i in range(max_rows):
+        customer = customers[i] if i < len(customers) else {}
+        product = products[i] if i < len(products) else {}
+
+        customer_revenue = customer.get("revenue") or 0
+        product_revenue = product.get("revenue") or 0
+
+        customer_percentage = round(
+            (customer_revenue / company_revenue) * 100, 2
+        ) if company_revenue else 0
+
+        product_percentage = round(
+            (product_revenue / company_revenue) * 100, 2
+        ) if company_revenue else 0
+
+        debug_log.append(
+            f"""Rank {i + 1}
+
+Customer:
+    Name: {customer.get("customer_name", "")}
+    Revenue: {customer_revenue}
+    Percentage: {customer_percentage}%
+
+Product:
+    Name: {product.get("item_name", "")}
+    Revenue: {product_revenue}
+    Percentage: {product_percentage}%
+
+----------------------------------------
+"""
+        )
+
+        rows.append({
+            "customer": customer.get("customer_name", ""),
+            "customer_percentage": customer_percentage,
+
+            "product": (
+				f'{product.get("item_code", "")} - {product.get("item_name", "")}'
+				if product.get("item_code")
+				else ""
+			),
+            "product_percentage": product_percentage,
+        })
+
+    frappe.log_error(
+        "\n".join(debug_log),
+        "Top Customer & Product Dashboard Debug"
+    )
+
+    return {
+        "rows": rows
+    }
+
+import frappe
+import json
+from frappe.desk.search import sanitize_searchfield
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def item_query(doctype, txt, searchfield, start, page_len, filters):
+	"""
+	Custom query to filter Items by the user's default company.
+
+	Shows:
+		1. Items belonging to the user's default company.
+		2. Global items (custom_company is NULL or empty).
+	"""
+
+	company = frappe.defaults.get_user_default("Company")
+
+	frappe.log_error(f"Default Company: {company}", "Item Query Debug")
+	frappe.log_error(f"Search Text: {txt}", "Item Query Debug")
+
+	conditions = ["disabled = 0"]
+	values = []
+
+	if txt:
+		conditions.append(f"({searchfield} LIKE %s OR item_name LIKE %s)")
+		values.extend([f"%{txt}%", f"%{txt}%"])
+
+	if company:
+		conditions.append(
+			"(custom_company = %s OR custom_company IS NULL OR custom_company = '')"
+		)
+		values.append(company)
+
+	query = f"""
+		SELECT
+			name,
+			item_name,
+			item_group
+		FROM `tabItem`
+		WHERE {' AND '.join(conditions)}
+		ORDER BY
+			CASE WHEN name LIKE %s THEN 0 ELSE 1 END,
+			item_name
+		LIMIT %s, %s
+	"""
+
+	values.extend([f"{txt}%", start, page_len])
+
+	frappe.log_error(query, "Item Query SQL")
+	frappe.log_error(str(values), "Item Query Values")
+
+	return frappe.db.sql(query, values)
