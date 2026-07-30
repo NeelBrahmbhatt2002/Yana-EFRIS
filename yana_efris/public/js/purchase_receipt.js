@@ -1,4 +1,49 @@
 frappe.ui.form.on("Purchase Receipt", {
+	refresh(frm) {
+		if (frm.is_new()) return;
+
+		let attempts = 0;
+
+		let timer = setInterval(() => {
+			attempts++;
+
+			// Stop after 2 seconds
+			if (attempts > 20) {
+				clearInterval(timer);
+				return;
+			}
+
+			// Wait until the menu exists
+			if (!frm.page.wrapper.find(".menu-btn-group").length) {
+				return;
+			}
+
+			clearInterval(timer);
+
+			// Remove previous PDF item if it already exists
+			frm.page.wrapper.find(".custom-pdf-menu-item").remove();
+
+			frm.page.add_menu_item(__("PDF"), function () {
+				let format = frm.meta.default_print_format || "Standard";
+
+				let url =
+					`/api/method/yana_efris.api.efris_api.download_invoice_pdf` +
+					`?doctype=${encodeURIComponent(frm.doctype)}` +
+					`&name=${encodeURIComponent(frm.doc.name)}` +
+					`&format=${encodeURIComponent(format)}`;
+
+				let a = document.createElement("a");
+				a.href = url;
+				a.download = `${frm.doc.name}.pdf`;
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+			});
+
+			// Mark the item so we can remove it next refresh
+			frm.page.wrapper.find(".dropdown-menu li:last").addClass("custom-pdf-menu-item");
+		}, 100);
+	},
 	custom_fdn_number(frm) {
 		const fdn = frm.doc.custom_fdn_number;
 
@@ -57,7 +102,7 @@ frappe.ui.form.on("Purchase Receipt", {
 							title: "EFRIS Response",
 							indicator: "blue",
 							message: __(
-								"Invoice fetched successfully and mapped items automatically."
+								"Invoice fetched successfully and mapped items automatically.",
 							),
 						});
 					}
