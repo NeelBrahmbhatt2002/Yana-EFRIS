@@ -1989,6 +1989,7 @@ def get_sales_dashboard_kpis():
         "currency_symbol": currency_symbol,
         "open_quotations": get_open_quotation_kpi(companies),
         "open_sales_orders": get_open_sales_order_kpi(companies),
+		"ready_to_dispatch_sales_orders": get_ready_to_dispatch_sales_order_kpi(companies),
         "unpaid_sales_invoices": get_unpaid_sales_invoice_kpi(companies),
     }
 
@@ -2012,6 +2013,31 @@ def get_open_quotation_kpi(companies):
     return {
         "count": result[0][0] or 0,
         "amount": float(result[0][1] or 0),
+    }
+
+def get_ready_to_dispatch_sales_order_kpi(companies):
+    if not companies:
+        return {
+            "count": 0,
+            "amount": 0
+        }
+
+    company = companies[0]
+
+    result = frappe.db.sql("""
+        SELECT
+            COUNT(*) AS count,
+            COALESCE(SUM(base_net_total), 0) AS amount
+        FROM `tabSales Order`
+        WHERE
+            docstatus = 1
+            AND company = %s
+            AND custom_dispatch_status = 'Ready to Dispatch'
+    """, (company,), as_dict=True)[0]
+
+    return {
+        "count": result.count or 0,
+        "amount": result.amount or 0
     }
 
 def get_open_sales_order_kpi(companies):
@@ -2474,7 +2500,7 @@ def get_top_customer_product():
             AND si.posting_date BETWEEN %s AND %s
         GROUP BY si.customer, c.customer_name
         ORDER BY revenue DESC
-        LIMIT 10
+        LIMIT 20
     """, (company, from_date, to_date), as_dict=True)
 
     products = frappe.db.sql("""
@@ -2491,7 +2517,7 @@ def get_top_customer_product():
             AND si.posting_date BETWEEN %s AND %s
         GROUP BY sii.item_code, sii.item_name
         ORDER BY revenue DESC
-        LIMIT 10
+        LIMIT 20
     """, (company, from_date, to_date), as_dict=True)
 
     rows = []
