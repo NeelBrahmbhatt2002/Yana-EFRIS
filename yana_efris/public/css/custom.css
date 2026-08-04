@@ -388,5 +388,11 @@ button[data-original-title="Print"] {
     /* border-color: #0d6efd !important; */
 }
 
+/* Hide only the Frappe Insights promotional block */
+.sidebar-section:has(a[href*="frappe.io/insights"]),
+.sidebar-section:has(a[href*="frappe.io/s/insights"]) {
+    display: none !important;
+}
+
 
 

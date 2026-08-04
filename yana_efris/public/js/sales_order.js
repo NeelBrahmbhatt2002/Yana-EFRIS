@@ -112,6 +112,23 @@ function update_items_label(frm) {
 	}
 }
 
+function update_delivery_status(frm) {
+	frm.doc.items.forEach((row) => {
+		const qty = flt(row.qty);
+		const delivered = flt(row.delivered_qty);
+
+		if (delivered <= 0) {
+			row.custom_delivery_status = "❌ Not Delivered";
+		} else if (delivered < qty) {
+			row.custom_delivery_status = "🟡 Partially Delivered";
+		} else {
+			row.custom_delivery_status = "✅ Delivered";
+		}
+	});
+
+	frm.refresh_field("items");
+}
+
 frappe.ui.form.on("Sales Order", {
 	onload(frm) {
 		toggle_efris_stock_column(frm);
@@ -124,6 +141,7 @@ frappe.ui.form.on("Sales Order", {
 	},
 	refresh(frm) {
 		toggle_efris_stock_column(frm);
+		update_delivery_status(frm);
 		update_items_label(frm);
 
 		if (frm.is_new()) return;
@@ -170,6 +188,10 @@ frappe.ui.form.on("Sales Order", {
 			frm.page.wrapper.find(".dropdown-menu li:last").addClass("custom-pdf-menu-item");
 		}, 100);
 	},
+	onload_post_render(frm) {
+		update_delivery_status(frm);
+	},
+
 	customer: function (frm) {
 		if (!frm.doc.customer) return;
 
