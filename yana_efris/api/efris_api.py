@@ -1990,6 +1990,8 @@ def get_sales_dashboard_kpis():
         "open_quotations": get_open_quotation_kpi(companies),
         "open_sales_orders": get_open_sales_order_kpi(companies),
 		"ready_to_dispatch_sales_orders": get_ready_to_dispatch_sales_order_kpi(companies),
+		"fully_delivered_sales_orders": get_fully_delivered_sales_order_kpi(companies),
+		"partially_delivered_sales_orders": get_partially_delivered_sales_order_kpi(companies),
         "unpaid_sales_invoices": get_unpaid_sales_invoice_kpi(companies),
     }
 
@@ -2028,17 +2030,65 @@ def get_ready_to_dispatch_sales_order_kpi(companies):
         SELECT
             COUNT(*) AS count,
             COALESCE(SUM(base_net_total), 0) AS amount
-        FROM `tabSales Order`
+        FROM `tabDelivery Note`
         WHERE
             docstatus = 1
             AND company = %s
-            AND custom_dispatch_status = 'Ready to Dispatch'
+            AND status = 'To Bill'
     """, (company,), as_dict=True)[0]
 
     return {
         "count": result.count or 0,
         "amount": result.amount or 0
     }
+
+def get_fully_delivered_sales_order_kpi(companies):
+    if not companies:
+        return {
+            "count": 0,
+            "amount": 0
+        }
+
+    company = companies[0]
+
+    result = frappe.db.sql("""
+        SELECT
+            COUNT(*) AS count,
+            COALESCE(SUM(base_net_total), 0) AS amount
+        FROM `tabSales Order`
+        WHERE
+            docstatus = 1
+            AND company = %s
+            AND per_delivered = 100
+    """, (company,), as_dict=True)[0]
+
+    return {
+        "count": result.count or 0,
+        "amount": result.amount or 0
+    }
+
+def get_partially_delivered_sales_order_kpi(companies):
+    if not companies:
+        return {
+            "count": 0,
+            "amount": 0
+        }
+
+    result = frappe.db.sql("""
+        SELECT
+            COUNT(*) AS count,
+            COALESCE(SUM(base_net_total), 0) AS amount
+        FROM `tabSales Order`
+        WHERE
+            docstatus = 1
+            AND company IN %(companies)s
+            AND per_delivered > 0
+            AND per_delivered < 100
+    """, {
+        "companies": tuple(companies)
+    }, as_dict=True)[0]
+
+    return result
 
 def get_open_sales_order_kpi(companies):
     result = frappe.db.sql(
