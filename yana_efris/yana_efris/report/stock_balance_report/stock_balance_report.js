@@ -204,6 +204,7 @@ frappe.query_reports["Stock Balance Report"] = {
 		});
 
 		const hide_qty_totals = () => {
+			console.log("hide_qty_totals");
 			const totalRow = document.querySelector(".dt-row-totalRow");
 			if (!totalRow) return;
 
@@ -212,6 +213,7 @@ frappe.query_reports["Stock Balance Report"] = {
 			const cells = totalRow.querySelectorAll(".dt-cell");
 
 			frappe.query_report.columns.forEach((column, index) => {
+				console.log(column.fieldname, index);
 				if (qtyFields.includes(column.fieldname)) {
 					// +1 because the total row has an extra serial-number cell
 					const cell = cells[index + 1];

@@ -39,7 +39,7 @@ company_data_to_be_ignored = ["E Invoicing Settings", "E Invoice", "EFRIS Sync P
 # app_include_css = "/assets/yana_efris/css/custom.css"
 
 app_include_css = [
-    "/assets/yana_efris/css/custom.css?v=1.0.1"
+    "/assets/yana_efris/css/custom.css?v=1.0.2",
 ]
 
 doctype_list_js = {
