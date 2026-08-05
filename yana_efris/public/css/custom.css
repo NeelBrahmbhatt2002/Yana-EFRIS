@@ -394,5 +394,28 @@ button[data-original-title="Print"] {
     display: none !important;
 }
 
+.yana-breadcrumb {
+    font-size: 15px;
+    font-weight: 500;
+    color: #5c6470;
+
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    margin-bottom: 10px;
+    margin-top: 10px;
+}
+
+.yana-breadcrumb .sep {
+    color: #b8bcc4;
+    font-size: 13px;
+}
+
+.yana-breadcrumb .current {
+    color: #1f2937;
+    font-weight: 600;
+}
+
 
 

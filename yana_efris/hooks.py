@@ -29,6 +29,7 @@ app_include_js = [
     "/assets/yana_efris/js/print_override.js",
     "/assets/yana_efris/js/navigation.js?v=0.0.1",
     "/assets/yana_efris/js/company_switcher.js?v=0.1",
+    "/assets/yana_efris/js/breadcrumbs.js",
     # "/assets/yana_efris/js/set_company_logo.js"
     # "/assets/yana_efris/js/override_help.js"
 ]
