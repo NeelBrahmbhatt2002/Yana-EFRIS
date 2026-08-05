@@ -1650,7 +1650,14 @@ def download_invoice_pdf(doctype, name, format=None):
         print_format=format
     )
 
-    pdf = get_pdf(html)
+    options = {
+        "margin-top": "5mm",
+        "margin-bottom": "5mm",
+        "margin-left": "10mm",
+        "margin-right": "10mm",
+    }
+
+    pdf = get_pdf(html, options=options)
 
     frappe.local.response.filename = f"{name}.pdf"
     frappe.local.response.filecontent = pdf
