@@ -1651,8 +1651,8 @@ def download_invoice_pdf(doctype, name, format=None):
     )
 
     options = {
-        "margin-top": "5mm",
-        "margin-bottom": "5mm",
+        "margin-top": "15mm",
+        "margin-bottom": "15mm",
         "margin-left": "10mm",
         "margin-right": "10mm",
     }
