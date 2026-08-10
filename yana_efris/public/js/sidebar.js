@@ -325,7 +325,7 @@ $(document).ready(function () {
 						<use href="#icon-${icon}"></use>
 					</svg>
 				</span>
-				<span class="sidebar-item-label">${label}</span>
+				<span class="sidebar-item-label" style="font-weight: bold;">${label}</span>
 			</a>
 		</div>
 	</div>`;
@@ -351,7 +351,7 @@ $(document).ready(function () {
 						<use href="#icon-${menu.icon}"></use>
 					</svg>
 				</span>
-				<span class="sidebar-item-label">${menu.title}</span>
+				<span class="sidebar-item-label" style="font-weight: bold;">${menu.title}</span>
 			</a>
 
 			<div class="sidebar-item-control">

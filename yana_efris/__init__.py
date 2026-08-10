@@ -8,6 +8,7 @@ from uganda_compliance.efris.api_classes import e_invoice, encryption_utils
 from uganda_compliance.efris.api_classes import efris_api as original_efris_api
 from uganda_compliance.efris.doctype.e_invoice.e_invoice import EInvoice
 from uganda_compliance.efris.api_classes import stock_in as original_stock_in
+from frappe.model import delete_doc
 # from pos_next.api.sales_invoice_hooks import apply_tax_inclusive
 # from yana_efris.overrides.posnext_sales_invoice import apply_tax_inclusive as patched_apply_tax_inclusive
 # import pos_next.api.sales_invoice_hooks as pos_hooks
@@ -15,6 +16,8 @@ from uganda_compliance.efris.api_classes import stock_in as original_stock_in
 # Override generate_irn (already working fine)
 e_invoice.EInvoiceAPI.generate_irn = efris_api.generate_irn
 e_invoice.EInvoiceAPI.synchronize_e_invoice = efris_api.synchronize_e_invoice
+
+delete_doc.check_permission_and_not_submitted = efris_api.check_permission_and_not_submitted
 
 # ✅ Replace decrypt AES on module location
 encryption_utils.decrypt_aes_ecb = efris_api.decrypt_aes_ecb

@@ -16,13 +16,14 @@ doctype_js = {
     "Sales Invoice": "public/js/sales_invoice.js",
     "Purchase Order": "public/js/purchase_order.js",
     "Purchase Invoice": "public/js/purchase_invoice.js",
-    "Purchase Receipt": "public/js/purchase_receipt.js"
+    "Purchase Receipt": "public/js/purchase_receipt.js",
+    "Delivery Note": "public/js/delivery_note.js",
 }
 
 app_include_js = [
     "/assets/yana_efris/js/exchange_rate_common.js?v=1",
     # "/assets/yana_efris/js/report_auto_company.js",
-    "/assets/yana_efris/js/sidebar.js?v=2.0.8",
+    "/assets/yana_efris/js/sidebar.js?v=2.0.9",
     "/assets/yana_efris/js/open_doctype_new_tab.js",
     "/assets/yana_efris/js/permission_override.js?v=0.0.1",
     "/assets/yana_efris/js/bank_reconciliation_tool.js",
