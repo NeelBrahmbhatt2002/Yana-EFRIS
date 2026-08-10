@@ -2695,3 +2695,25 @@ def item_query(doctype, txt, searchfield, start, page_len, filters):
 	frappe.log_error(str(values), "Item Query Values")
 
 	return frappe.db.sql(query, values)
+
+def check_permission_and_not_submitted(doc):
+	# permission
+	if (
+		not doc.flags.ignore_permissions
+		and frappe.session.user != "Administrator"
+		and (not doc.has_permission("delete") or (doc.doctype == "DocType" and not doc.custom))
+	):
+		frappe.msgprint(
+			_("User not allowed to delete {0}: {1}").format(doc.doctype, doc.name),
+			raise_exception=frappe.PermissionError,
+		)
+
+	# check if submitted
+	if doc.meta.is_submittable and doc.docstatus.is_submitted():
+		frappe.msgprint(
+			_("{0} {1}: Submitted Record cannot be deleted. You must Cancel it first.").format(
+				_(doc.doctype),
+				doc.name,
+			),
+			raise_exception=True,
+		)

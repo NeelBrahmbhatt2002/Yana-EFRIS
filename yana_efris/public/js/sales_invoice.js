@@ -153,6 +153,8 @@ frappe.ui.form.on("Sales Invoice", {
 	refresh: async function (frm) {
 		console.log("Client Script Executed");
 
+		if (frm.doc.docstatus !== 0) return;
+
 		if (frm.doc.items?.length) {
 			let sales_order = frm.doc.items[0].sales_order;
 			console.log("Sales Order:", sales_order);
@@ -165,6 +167,21 @@ frappe.ui.form.on("Sales Invoice", {
 					console.log("Value Set");
 				}
 			});
+
+			const row = frm.doc.items[0];
+			console.log("First row:", row);
+
+			let base_document = "";
+
+			if (row.delivery_note) {
+				base_document = row.delivery_note;
+			} else if (row.sales_order) {
+				base_document = row.sales_order;
+			}
+
+			if (base_document && frm.doc.custom_document_name !== base_document) {
+				frm.set_value("custom_document_name", base_document);
+			}
 		}
 		// Give Uganda Compliance time to add its button
 		setTimeout(async () => {

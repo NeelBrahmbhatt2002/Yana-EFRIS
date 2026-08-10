@@ -140,6 +140,20 @@ frappe.ui.form.on("Sales Order", {
 		update_items_label(frm);
 	},
 	refresh(frm) {
+		console.log("Sales Order Client Script Executed");
+
+		if (frm.doc.docstatus !== 0) return;
+
+		if (frm.doc.items?.length) {
+			let quotation = frm.doc.items[0].prevdoc_docname;
+			console.log("Quotation:", quotation);
+
+			if (quotation) {
+				frm.set_value("custom_reference_document_number", quotation);
+				console.log("Quotation Set");
+			}
+		}
+
 		toggle_efris_stock_column(frm);
 		update_delivery_status(frm);
 		update_items_label(frm);
