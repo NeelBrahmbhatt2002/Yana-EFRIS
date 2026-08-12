@@ -118,11 +118,11 @@ function update_delivery_status(frm) {
 		const delivered = flt(row.delivered_qty);
 
 		if (delivered <= 0) {
-			row.custom_delivery_status = "❌ Not Delivered";
+			row.custom_delivery_status = "❌";
 		} else if (delivered < qty) {
-			row.custom_delivery_status = "🟡 Partially Delivered";
+			row.custom_delivery_status = "🟡";
 		} else {
-			row.custom_delivery_status = "✅ Delivered";
+			row.custom_delivery_status = "✅";
 		}
 	});
 

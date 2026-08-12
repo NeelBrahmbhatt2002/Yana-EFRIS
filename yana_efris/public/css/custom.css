@@ -417,5 +417,14 @@ button[data-original-title="Print"] {
     font-weight: 600;
 }
 
+/* Sales Order List - make ID column wider */
+/* [data-route="List/Sales Order/List"] .list-row-col:last-child {
+    min-width: 140px !important;
+} */
+
+ .list-row-col:last-child {
+    min-width: 180px !important;
+}
+
 
 
