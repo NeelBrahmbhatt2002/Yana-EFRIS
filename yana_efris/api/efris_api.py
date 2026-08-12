@@ -2717,3 +2717,217 @@ def check_permission_and_not_submitted(doc):
 			),
 			raise_exception=True,
 		)
+
+@frappe.whitelist()
+def get_quotation_tracker():
+    companies = get_allowed_companies()
+    currency_symbol = get_currency_symbol(companies)
+
+    if not companies:
+        return {
+            "currency_symbol": currency_symbol,
+            "open": {
+                "count": 0,
+                "amount": 0
+            },
+            "ordered": {
+                "count": 0,
+                "amount": 0
+            },
+            "lost": {
+                "count": 0,
+                "amount": 0
+            },
+            "cancelled": {
+                "count": 0,
+                "amount": 0
+            },
+        }
+
+    company = companies[0]
+
+    statuses = ["Open", "Ordered", "Lost", "Cancelled"]
+
+    result = {
+        "currency_symbol": currency_symbol
+    }
+
+    for status in statuses:
+        data = frappe.db.sql(
+            """
+            SELECT
+                COUNT(*) AS count,
+                COALESCE(SUM(base_net_total), 0) AS amount
+            FROM `tabQuotation`
+            WHERE
+                company = %s
+                AND status = %s
+                AND docstatus = 1
+            """,
+            (company, status),
+            as_dict=True,
+        )[0]
+
+        result[status.lower()] = {
+            "count": data.get("count") or 0,
+            "amount": data.get("amount") or 0,
+        }
+
+    return result
+
+@frappe.whitelist()
+def get_sales_order_tracker():
+    companies = get_allowed_companies()
+    currency_symbol = get_currency_symbol(companies)
+
+    if not companies:
+        return {
+            "currency_symbol": currency_symbol,
+            "to_deliver": {
+                "count": 0,
+                "amount": 0
+            },
+            "fully_delivered": {
+                "count": 0,
+                "amount": 0
+            },
+            "partially_delivered": {
+                "count": 0,
+                "amount": 0
+            },
+        }
+
+    company = companies[0]
+
+    result = {
+        "currency_symbol": currency_symbol
+    }
+
+    # To Deliver
+    data = frappe.db.sql(
+        """
+        SELECT
+            COUNT(*) AS count,
+            COALESCE(SUM(base_net_total), 0) AS amount
+        FROM `tabSales Order`
+        WHERE
+            company = %s
+            AND docstatus = 1
+            AND per_delivered = 0
+        """,
+        (company,),
+        as_dict=True,
+    )[0]
+
+    result["to_deliver"] = {
+        "count": data.get("count") or 0,
+        "amount": data.get("amount") or 0,
+    }
+
+    # Fully Delivered
+    data = frappe.db.sql(
+        """
+        SELECT
+            COUNT(*) AS count,
+            COALESCE(SUM(base_net_total), 0) AS amount
+        FROM `tabSales Order`
+        WHERE
+            company = %s
+            AND docstatus = 1
+            AND per_delivered = 100
+        """,
+        (company,),
+        as_dict=True,
+    )[0]
+
+    result["fully_delivered"] = {
+        "count": data.get("count") or 0,
+        "amount": data.get("amount") or 0,
+    }
+
+    # Partially Delivered
+    data = frappe.db.sql(
+        """
+        SELECT
+            COUNT(*) AS count,
+            COALESCE(SUM(base_net_total), 0) AS amount
+        FROM `tabSales Order`
+        WHERE
+            company = %s
+            AND docstatus = 1
+            AND per_delivered > 0
+            AND per_delivered < 100
+        """,
+        (company,),
+        as_dict=True,
+    )[0]
+
+    result["partially_delivered"] = {
+        "count": data.get("count") or 0,
+        "amount": data.get("amount") or 0,
+    }
+
+    return result
+
+@frappe.whitelist()
+def get_sales_invoice_tracker():
+    companies = get_allowed_companies()
+    currency_symbol = get_currency_symbol(companies)
+
+    if not companies:
+        return {
+            "currency_symbol": currency_symbol,
+            "unpaid": {
+                "count": 0,
+                "amount": 0
+            },
+            "overdue": {
+                "count": 0,
+                "amount": 0
+            },
+            "paid": {
+                "count": 0,
+                "amount": 0
+            },
+            "credit_note": {
+                "count": 0,
+                "amount": 0
+            },
+        }
+
+    company = companies[0]
+
+    statuses = {
+        "unpaid": "Unpaid",
+        "overdue": "Overdue",
+        "paid": "Paid",
+        "credit_note": "Return",
+    }
+
+    result = {
+        "currency_symbol": currency_symbol
+    }
+
+    for key, status in statuses.items():
+
+        data = frappe.db.sql(
+            """
+            SELECT
+                COUNT(*) AS count,
+                COALESCE(SUM(base_net_total), 0) AS amount
+            FROM `tabSales Invoice`
+            WHERE
+                company = %s
+                AND docstatus = 1
+                AND status = %s
+            """,
+            (company, status),
+            as_dict=True,
+        )[0]
+
+        result[key] = {
+            "count": data.get("count") or 0,
+            "amount": data.get("amount") or 0,
+        }
+
+    return result
