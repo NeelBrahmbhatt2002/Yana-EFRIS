@@ -19,7 +19,7 @@ from erpnext.selling.page.point_of_sale.point_of_sale import (
 	get_stock_availability,
 )
 from frappe.query_builder import DocType, functions as fn
-from frappe.utils import flt, nowdate
+from frappe.utils import flt, nowdate,now_datetime, formatdate, format_time
 from frappe.utils.nestedset import get_root_of
 from erpnext.stock.get_item_details import get_conversion_factor
 from frappe.utils.pdf import get_pdf
@@ -1638,6 +1638,49 @@ def get_items(pos_profile, search_term=None, item_group=None, start=0, limit=20,
 		frappe.throw(_("Error fetching items: {0}").format(str(e)))
 
 
+def add_digital_signature(html):
+    user_id = frappe.session.user
+    current_datetime = now_datetime()
+
+    signature_html = f"""
+        <div class="yana-digital-signature">
+            <div class="yana-signature-title">Digitally Signed</div>
+            <div>User ID: {frappe.utils.escape_html(user_id)}</div>
+            <div>Date: {formatdate(current_datetime)}</div>
+            <div>Time: {format_time(current_datetime)}</div>
+        </div>
+
+        <style>
+            .yana-digital-signature {{
+                margin-top: 8mm;
+                margin-right: 10mm;
+                margin-bottom: 5mm;
+                text-align: right;
+                font-size: 8px;
+                line-height: 1.4;
+                color: #555;
+                page-break-inside: avoid;
+            }}
+
+            .yana-signature-title {{
+                font-weight: bold;
+                font-size: 9px;
+                color: #222;
+            }}
+        </style>
+    """
+
+    # Insert signature before closing body tag
+    if "</body>" in html:
+        html = html.replace("</body>", signature_html + "</body>")
+    elif "</BODY>" in html:
+        html = html.replace("</BODY>", signature_html + "</BODY>")
+    else:
+        html += signature_html
+
+    return html
+
+
 @frappe.whitelist()
 def download_invoice_pdf(doctype, name, format=None):
     # fallback if not provided
@@ -1649,6 +1692,8 @@ def download_invoice_pdf(doctype, name, format=None):
         name,
         print_format=format
     )
+
+    # html = add_digital_signature(html)
 
     options = {
         "margin-top": "15mm",
@@ -2541,9 +2586,15 @@ def get_top_customer_product():
     from_date = fiscal_year["year_start_date"]
     to_date = getdate()
 
-    company_revenue = get_sales_amount(company, from_date, to_date)
+    company_revenue = get_sales_amount(
+        company,
+        from_date,
+        to_date
+    )
 
-    customers = frappe.db.sql("""
+    # Top Customers
+    customers = frappe.db.sql(
+        """
         SELECT
             si.customer,
             c.customer_name,
@@ -2555,27 +2606,48 @@ def get_top_customer_product():
             si.docstatus = 1
             AND si.company = %s
             AND si.posting_date BETWEEN %s AND %s
-        GROUP BY si.customer, c.customer_name
-        ORDER BY revenue DESC
+        GROUP BY
+            si.customer,
+            c.customer_name
+        ORDER BY
+            revenue DESC
         LIMIT 20
-    """, (company, from_date, to_date), as_dict=True)
+        """,
+        (company, from_date, to_date),
+        as_dict=True,
+    )
 
-    products = frappe.db.sql("""
+    # Top Products
+    # Item Code comes from Sales Invoice Item.
+    # Item Name comes directly from the Item Master.
+    # Revenue is combined by Item Code.
+    products = frappe.db.sql(
+        """
         SELECT
             sii.item_code,
-            sii.item_name,
+            i.item_name AS item_name,
             SUM(sii.base_net_amount) AS revenue
         FROM `tabSales Invoice Item` sii
         INNER JOIN `tabSales Invoice` si
             ON si.name = sii.parent
+        LEFT JOIN `tabItem` i
+            ON i.name = sii.item_code
         WHERE
             si.docstatus = 1
             AND si.company = %s
             AND si.posting_date BETWEEN %s AND %s
-        GROUP BY sii.item_code, sii.item_name
-        ORDER BY revenue DESC
+            AND sii.item_code IS NOT NULL
+            AND sii.item_code != ''
+        GROUP BY
+            sii.item_code,
+            i.item_name
+        ORDER BY
+            revenue DESC
         LIMIT 20
-    """, (company, from_date, to_date), as_dict=True)
+        """,
+        (company, from_date, to_date),
+        as_dict=True,
+    )
 
     rows = []
     debug_log = []
@@ -2588,7 +2660,10 @@ Company Revenue: {company_revenue}
 """
     )
 
-    max_rows = max(len(customers), len(products))
+    max_rows = max(
+        len(customers),
+        len(products)
+    )
 
     for i in range(max_rows):
         customer = customers[i] if i < len(customers) else {}
@@ -2597,13 +2672,35 @@ Company Revenue: {company_revenue}
         customer_revenue = customer.get("revenue") or 0
         product_revenue = product.get("revenue") or 0
 
-        customer_percentage = round(
-            (customer_revenue / company_revenue) * 100, 2
-        ) if company_revenue else 0
+        customer_percentage = (
+            round(
+                (customer_revenue / company_revenue) * 100,
+                2
+            )
+            if company_revenue
+            else 0
+        )
 
-        product_percentage = round(
-            (product_revenue / company_revenue) * 100, 2
-        ) if company_revenue else 0
+        product_percentage = (
+            round(
+                (product_revenue / company_revenue) * 100,
+                2
+            )
+            if company_revenue
+            else 0
+        )
+
+        product_code = (product.get("item_code") or "").strip()
+        product_name = (product.get("item_name") or "").strip()
+
+        if product_code and product_name:
+            product_display = f"{product_code} - {product_name}"
+        elif product_name:
+            product_display = product_name
+        elif product_code:
+            product_display = product_code
+        else:
+            product_display = ""
 
         debug_log.append(
             f"""Rank {i + 1}
@@ -2614,7 +2711,9 @@ Customer:
     Percentage: {customer_percentage}%
 
 Product:
-    Name: {product.get("item_name", "")}
+    Code: {product_code}
+    Name: {product_name}
+    Display: {product_display}
     Revenue: {product_revenue}
     Percentage: {product_percentage}%
 
@@ -2623,14 +2722,12 @@ Product:
         )
 
         rows.append({
-            "customer": customer.get("customer_name", ""),
+            "customer": customer.get(
+                "customer_name",
+                ""
+            ),
             "customer_percentage": customer_percentage,
-
-            "product": (
-				f'{product.get("item_code", "")} - {product.get("item_name", "")}'
-				if product.get("item_code")
-				else ""
-			),
+            "product": product_display,
             "product_percentage": product_percentage,
         })
 
@@ -2726,33 +2823,43 @@ def get_quotation_tracker():
     if not companies:
         return {
             "currency_symbol": currency_symbol,
-            "open": {
-                "count": 0,
-                "amount": 0
-            },
-            "ordered": {
-                "count": 0,
-                "amount": 0
-            },
-            "lost": {
-                "count": 0,
-                "amount": 0
-            },
-            "cancelled": {
-                "count": 0,
-                "amount": 0
-            },
+            "total_count": 0,
+            "draft": {"count": 0, "amount": 0},
+            "open": {"count": 0, "amount": 0},
+            "ordered": {"count": 0, "amount": 0},
+            "lost": {"count": 0, "amount": 0},
+            "cancelled": {"count": 0, "amount": 0},
+            "expired": {"count": 0, "amount": 0},
         }
 
     company = companies[0]
 
-    statuses = ["Open", "Ordered", "Lost", "Cancelled"]
+    statuses = [
+        ("Draft", 0),
+        ("Open", 1),
+        ("Ordered", 1),
+        ("Lost", 1),
+        ("Cancelled", 2),
+        ("Expired", 1),
+    ]
 
     result = {
         "currency_symbol": currency_symbol
     }
 
-    for status in statuses:
+    total_data = frappe.db.sql(
+        """
+        SELECT COUNT(*) AS count
+        FROM `tabQuotation`
+        WHERE company = %s
+        """,
+        (company,),
+        as_dict=True,
+    )[0]
+
+    result["total_count"] = total_data.get("count") or 0
+
+    for status, docstatus in statuses:
         data = frappe.db.sql(
             """
             SELECT
@@ -2762,9 +2869,9 @@ def get_quotation_tracker():
             WHERE
                 company = %s
                 AND status = %s
-                AND docstatus = 1
+                AND docstatus = %s
             """,
-            (company, status),
+            (company, status, docstatus),
             as_dict=True,
         )[0]
 
@@ -2783,6 +2890,11 @@ def get_sales_order_tracker():
     if not companies:
         return {
             "currency_symbol": currency_symbol,
+            "total_count": 0,
+            "open": {
+                "count": 0,
+                "amount": 0
+            },
             "to_deliver": {
                 "count": 0,
                 "amount": 0
@@ -2795,6 +2907,14 @@ def get_sales_order_tracker():
                 "count": 0,
                 "amount": 0
             },
+            "draft": {
+                "count": 0,
+                "amount": 0
+            },
+            "cancelled": {
+                "count": 0,
+                "amount": 0
+            },
         }
 
     company = companies[0]
@@ -2803,7 +2923,20 @@ def get_sales_order_tracker():
         "currency_symbol": currency_symbol
     }
 
-    # To Deliver
+    # Total Sales Orders
+    total_data = frappe.db.sql(
+        """
+        SELECT COUNT(*) AS count
+        FROM `tabSales Order`
+        WHERE company = %s
+        """,
+        (company,),
+        as_dict=True,
+    )[0]
+
+    result["total_count"] = total_data.get("count") or 0
+
+    # Open Sales Orders
     data = frappe.db.sql(
         """
         SELECT
@@ -2814,6 +2947,27 @@ def get_sales_order_tracker():
             company = %s
             AND docstatus = 1
             AND per_delivered = 0
+        """,
+        (company,),
+        as_dict=True,
+    )[0]
+
+    result["open"] = {
+        "count": data.get("count") or 0,
+        "amount": data.get("amount") or 0,
+    }
+
+    # To Deliver - Delivery Notes
+    data = frappe.db.sql(
+        """
+        SELECT
+            COUNT(*) AS count,
+            COALESCE(SUM(base_net_total), 0) AS amount
+        FROM `tabDelivery Note`
+        WHERE
+            company = %s
+            AND docstatus = 1
+            AND status = 'To Bill'
         """,
         (company,),
         as_dict=True,
@@ -2867,6 +3021,46 @@ def get_sales_order_tracker():
         "amount": data.get("amount") or 0,
     }
 
+    # Draft
+    data = frappe.db.sql(
+        """
+        SELECT
+            COUNT(*) AS count,
+            COALESCE(SUM(base_net_total), 0) AS amount
+        FROM `tabSales Order`
+        WHERE
+            company = %s
+            AND docstatus = 0
+        """,
+        (company,),
+        as_dict=True,
+    )[0]
+
+    result["draft"] = {
+        "count": data.get("count") or 0,
+        "amount": data.get("amount") or 0,
+    }
+
+    # Cancelled
+    data = frappe.db.sql(
+        """
+        SELECT
+            COUNT(*) AS count,
+            COALESCE(SUM(base_net_total), 0) AS amount
+        FROM `tabSales Order`
+        WHERE
+            company = %s
+            AND docstatus = 2
+        """,
+        (company,),
+        as_dict=True,
+    )[0]
+
+    result["cancelled"] = {
+        "count": data.get("count") or 0,
+        "amount": data.get("amount") or 0,
+    }
+
     return result
 
 @frappe.whitelist()
@@ -2877,6 +3071,11 @@ def get_sales_invoice_tracker():
     if not companies:
         return {
             "currency_symbol": currency_symbol,
+            "total_count": 0,
+            "draft": {
+                "count": 0,
+                "amount": 0
+            },
             "unpaid": {
                 "count": 0,
                 "amount": 0
@@ -2893,22 +3092,66 @@ def get_sales_invoice_tracker():
                 "count": 0,
                 "amount": 0
             },
+            "cancelled": {
+                "count": 0,
+                "amount": 0
+            },
         }
 
     company = companies[0]
 
     statuses = {
-        "unpaid": "Unpaid",
-        "overdue": "Overdue",
-        "paid": "Paid",
-        "credit_note": "Return",
+        "draft": {
+            "status": "Draft",
+            "docstatus": 0,
+            "is_return": 0,
+        },
+        "unpaid": {
+            "status": "Unpaid",
+            "docstatus": 1,
+            "is_return": 0,
+        },
+        "overdue": {
+            "status": "Overdue",
+            "docstatus": 1,
+            "is_return": 0,
+        },
+        "paid": {
+            "status": "Paid",
+            "docstatus": 1,
+            "is_return": 0,
+        },
+        "credit_note": {
+            "status": "Return",
+            "docstatus": 1,
+            "is_return": 1,
+        },
+        "cancelled": {
+            "status": "Cancelled",
+            "docstatus": 2,
+            "is_return": 0,
+        },
     }
 
     result = {
         "currency_symbol": currency_symbol
     }
 
-    for key, status in statuses.items():
+    # Total Sales Invoices
+    total_data = frappe.db.sql(
+        """
+        SELECT COUNT(*) AS count
+        FROM `tabSales Invoice`
+        WHERE company = %s
+        """,
+        (company,),
+        as_dict=True,
+    )[0]
+
+    result["total_count"] = total_data.get("count") or 0
+
+    # Status-wise data
+    for key, filters in statuses.items():
 
         data = frappe.db.sql(
             """
@@ -2918,10 +3161,16 @@ def get_sales_invoice_tracker():
             FROM `tabSales Invoice`
             WHERE
                 company = %s
-                AND docstatus = 1
+                AND docstatus = %s
                 AND status = %s
+                AND is_return = %s
             """,
-            (company, status),
+            (
+                company,
+                filters["docstatus"],
+                filters["status"],
+                filters["is_return"],
+            ),
             as_dict=True,
         )[0]
 

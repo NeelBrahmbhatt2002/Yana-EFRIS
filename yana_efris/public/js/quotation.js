@@ -122,10 +122,64 @@ frappe.ui.form.on("Quotation", {
 		toggle_efris_stock_column(frm);
 		update_items_label(frm);
 	},
+	party_name(frm) {
+		// Only apply this logic when Quotation To is Customer
+		if (frm.doc.quotation_to !== "Customer") {
+			frm.set_value("custom_sales_person_name", null);
+			return;
+		}
+
+		// Customer cleared
+		if (!frm.doc.party_name) {
+			frm.set_value("custom_sales_person_name", null);
+			return;
+		}
+
+		// Clear existing/default value first
+		frm.set_value("custom_sales_person_name", null);
+
+		// --------------------------------------------------
+		// 1. Check Customer's Sales Team
+		// --------------------------------------------------
+		frappe.db.get_doc("Customer", frm.doc.party_name).then((customer) => {
+			let customer_sales_person = null;
+
+			if (customer.sales_team && customer.sales_team.length) {
+				customer_sales_person = customer.sales_team[0].sales_person;
+			}
+
+			if (customer_sales_person) {
+				frm.set_value("custom_sales_person_name", customer_sales_person);
+				return;
+			}
+
+			// --------------------------------------------------
+			// 2. Find Sales Person mapped to logged-in User
+			// --------------------------------------------------
+			frappe.db
+				.get_value(
+					"Sales Person",
+					{
+						custom_user: frappe.session.user,
+					},
+					"name",
+				)
+				.then((r) => {
+					if (r.message && r.message.name) {
+						frm.set_value("custom_sales_person_name", r.message.name);
+						return;
+					}
+
+					// --------------------------------------------------
+					// 3. Neither condition satisfied
+					// --------------------------------------------------
+					frm.set_value("custom_sales_person_name", null);
+				});
+		});
+	},
 	refresh(frm) {
 		toggle_efris_stock_column(frm);
 		update_items_label(frm);
-		console.log("[EFRIS] refresh() triggered");
 
 		if (frm.is_new()) return;
 
@@ -173,19 +227,16 @@ frappe.ui.form.on("Quotation", {
 
 		// Skip EFRIS calls when opening an old Sales Invoice
 		if (!frm.is_new() || frm.doc.docstatus !== 0) {
-			console.log("[EFRIS] Existing/Submitted Sales Invoice → No API calls.");
 			return;
 		}
 
 		if (!frm.doc.items || frm.doc.items.length === 0) {
-			console.log("[EFRIS] No items in the table.");
 			return;
 		}
 
 		// Scan all rows → process only rows not yet fetched
 		frm.doc.items.forEach((row) => {
 			if (!row.__live_stock_fetched) {
-				console.log("[EFRIS] New row detected →", row.item_code);
 				queue_live_stock_call(frm, row);
 			}
 		});
