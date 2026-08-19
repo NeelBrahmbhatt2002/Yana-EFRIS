@@ -79,6 +79,11 @@ function render_yana_breadcrumb() {
 
 	if (route[0] === "Form") {
 		docname = route[2] || "";
+
+		// Don't show temporary name for new documents
+		if (docname.startsWith("new-")) {
+			docname = "";
+		}
 	}
 
 	const parts = [];
