@@ -1652,12 +1652,14 @@ def add_digital_signature(html):
 
         <style>
             .yana-digital-signature {{
+                width: 45mm;
                 margin-top: 8mm;
+                margin-left: auto;
                 margin-right: 10mm;
                 margin-bottom: 5mm;
-                text-align: right;
+                text-align: left;
                 font-size: 8px;
-                line-height: 1.4;
+                line-height: 1.5;
                 color: #555;
                 page-break-inside: avoid;
             }}
@@ -1666,6 +1668,7 @@ def add_digital_signature(html):
                 font-weight: bold;
                 font-size: 9px;
                 color: #222;
+                margin-bottom: 1mm;
             }}
         </style>
     """
@@ -1680,20 +1683,106 @@ def add_digital_signature(html):
 
     return html
 
+def is_document_printed(doctype, name):
+    return frappe.db.exists(
+        "One Time Print Log",
+        {
+            "document_type": doctype,
+            "document_name": name,
+            "is_printed": 1,
+        },
+    )
+
+@frappe.whitelist()
+def check_document_printed(doctype, name):
+    return {
+        "is_printed": bool(is_document_printed(doctype, name))
+    }
+
+ONE_TIME_PRINT_COMPANY = "MERCIA HOSPITALITY SOLUTIONS LIMITED"
+
+def is_one_time_print_enabled(doctype, name):
+    company = frappe.db.get_value(
+        doctype,
+        name,
+        "company"
+    )
+
+    return company == ONE_TIME_PRINT_COMPANY
+
+def mark_document_as_printed(doctype, name, print_format=None):
+
+    frappe.log_error(
+        title="ONE TIME PRINT - MARK FUNCTION CALLED",
+        message=f"""
+        Doctype: {doctype}
+        Name: {name}
+        Format: {print_format}
+        """
+    )
+
+    existing = frappe.db.exists(
+        "One Time Print Log",
+        {
+            "document_type": doctype,
+            "document_name": name,
+            "is_printed": 1,
+        },
+    )
+
+    frappe.log_error(
+        title="ONE TIME PRINT - EXISTING CHECK",
+        message=f"Existing: {existing}"
+    )
+
+    if existing:
+        return False
+
+    log = frappe.get_doc({
+        "doctype": "One Time Print Log",
+        "document_type": doctype,
+        "document_name": name,
+        "is_printed": 1,
+        "printed_by": frappe.session.user,
+        "printed_on": frappe.utils.now_datetime(),
+        "print_format": print_format,
+    })
+
+    log.insert(ignore_permissions=True)
+
+    frappe.log_error(
+        title="ONE TIME PRINT - LOG CREATED",
+        message=f"Created Log: {log.name}"
+    )
+
+    return True
 
 @frappe.whitelist()
 def download_invoice_pdf(doctype, name, format=None):
-    # fallback if not provided
+
     if not format:
         format = frappe.get_meta(doctype).default_print_format or "Standard"
 
+    # Check whether One-Time Printing applies to this document
+    one_time_print = is_one_time_print_enabled(doctype, name)
+
+    # Only apply One-Time Printing for Mercia Hospitality Solutions Limited
+    if one_time_print:
+
+        if is_document_printed(doctype, name):
+            frappe.throw(
+                "This document has already been printed and cannot be printed again."
+            )
+
+    # Generate print HTML
     html = frappe.get_print(
         doctype,
         name,
         print_format=format
     )
 
-    # html = add_digital_signature(html)
+    # Add digital signature
+    html = add_digital_signature(html)
 
     options = {
         "margin-top": "15mm",
@@ -1702,7 +1791,16 @@ def download_invoice_pdf(doctype, name, format=None):
         "margin-right": "10mm",
     }
 
+    # Generate PDF
     pdf = get_pdf(html, options=options)
+
+    # Only create One Time Print Log for Mercia
+    if one_time_print:
+        mark_document_as_printed(
+            doctype,
+            name,
+            format
+        )
 
     frappe.local.response.filename = f"{name}.pdf"
     frappe.local.response.filecontent = pdf
@@ -3180,3 +3278,5 @@ def get_sales_invoice_tracker():
         }
 
     return result
+
+

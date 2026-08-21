@@ -104,11 +104,13 @@ const CUSTOM_MENUS = [
 		icon: "star",
 		items: [
 			{ label: "Sales Dashboard", link: "/app/sales-dashboard", icon: "" },
-			{ label: "Point of Sale", link: "/pos", icon: "" },
-			{ label: "Customers", link: "/app/customer", icon: "" },
-			{ label: "Quotes", link: "/app/quotation", icon: "" },
-			{ label: "Sales Orders", link: "/app/sales-order", icon: "" },
-			{ label: "Invoices", link: "/app/sales-invoice", icon: "" },
+			{ label: "Customer", link: "/app/customer", icon: "" },
+			{ label: "Quotation", link: "/app/quotation", icon: "" },
+			{ label: "Sales Order", link: "/app/sales-order", icon: "" },
+			{ label: "Pick List", link: "/app/pick-list", icon: "" },
+			{ label: "Delivery Note", link: "/app/delivery-note", icon: "" },
+			// { label: "Point of Sale", link: "/pos", icon: "" },
+			{ label: "Sales Invoice", link: "/app/sales-invoice", icon: "" },
 		],
 	},
 ];
