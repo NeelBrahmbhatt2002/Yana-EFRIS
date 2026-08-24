@@ -8,6 +8,7 @@ from uganda_compliance.efris.utils.utils import efris_log_info, efris_log_error
 from uganda_compliance.efris.doctype.e_invoice.e_invoice import _get_valid_document
 from uganda_compliance.efris.doctype.e_invoice.e_invoice import _calculate_taxes_and_discounts
 from uganda_compliance.efris.doctype.e_invoice.e_invoice import calculate_tax_by_category
+from uganda_compliance.efris.doctype.e_invoicing_settings.e_invoicing_settings import get_e_company_settings
 
 def get_einvoice_json(self, sales_invoice):
     """
@@ -31,6 +32,28 @@ def get_einvoice_json(self, sales_invoice):
     einvoice_json.update(self.get_summary(sales_invoice))
     einvoice_json.update(self.get_payment_details())
     return einvoice_json
+
+def set_basic_information(self):
+    efris_log_info("Setting basic information")
+    self.invoiceNo = ""
+    self.antifakeCode = ""
+
+    self.device_no = get_e_company_settings(self.company).device_no
+    
+    self.issuedDate = self.sales_invoice.creation
+    self.operator = frappe.db.get_value(
+        "User",
+        self.sales_invoice.modified_by,
+        "full_name"
+    )
+    self.currency = self.sales_invoice.currency
+    self.oriInvoiceId = ""
+    self.invoiceType = self.set_invoice_type()
+    self.invoiceKind = 1 
+    self.dataSource = 103 
+    self.invoiceIndustryCode = 101 
+    self.isBatch = 0 
+    self.is_return = self.sales_invoice.is_return
 
 def get_seller_details_json(self, sales_invoice):
     efris_log_info(f"[YANA EFRIS] get_seller_details_json() called for {sales_invoice.name}")
