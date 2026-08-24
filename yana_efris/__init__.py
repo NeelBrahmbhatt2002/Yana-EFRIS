@@ -30,6 +30,7 @@ e_invoice.get_efris_product_code = efris_api.get_efris_product_code
 # Override JSON methods (working fine)
 EInvoice.get_einvoice_json = yana_einvoice.get_einvoice_json
 EInvoice.get_seller_details_json = yana_einvoice.get_seller_details_json
+EInvoice.set_basic_information = yana_einvoice.set_basic_information
 EInvoice.get_tax_details = yana_einvoice.get_tax_details
 EInvoice.get_summary = yana_einvoice.get_summary
 # EInvoice.before_submit = yana_einvoice.yana_before_submit
