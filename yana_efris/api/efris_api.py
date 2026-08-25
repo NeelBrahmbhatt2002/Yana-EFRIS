@@ -2299,16 +2299,21 @@ def get_salesperson_summary():
 
     add_open_quotation_summary(summary, companies)
     add_open_sales_order_summary(summary, companies)
+    add_unpaid_sales_invoice_summary(summary, companies)
 
-    invoice_summary = get_unpaid_sales_invoice_kpi(companies)
-
-    rows = sorted(summary.values(), key=lambda x: x["sales_person"])
+    rows = sorted(
+        summary.values(),
+        key=lambda x: x["sales_person"]
+    )
 
     return {
         "currency_symbol": currency_symbol,
         "rows": rows,
         "totals": salesperson_totals,
-        "invoice_total": invoice_summary,
+        "invoice_total": {
+            "count": salesperson_totals["sales_invoice_count"],
+            "amount": salesperson_totals["sales_invoice_amount"],
+        },
     }
 
 def add_open_quotation_summary(summary, companies):
@@ -2352,14 +2357,10 @@ def add_open_sales_order_summary(summary, companies):
         FROM `tabSales Order`
         WHERE
             docstatus = 1
-            AND status IN (
-                'To Deliver',
-                'To Bill',
-                'To Deliver and Bill'
-            )
+            AND per_delivered = 0
             AND company IN %(companies)s
-			AND custom_sales_person_name IS NOT NULL
-			AND custom_sales_person_name != ''
+            AND custom_sales_person_name IS NOT NULL
+            AND custom_sales_person_name != ''
         GROUP BY custom_sales_person_name
         """,
         {
@@ -2373,7 +2374,41 @@ def add_open_sales_order_summary(summary, companies):
             summary[sales_person] = get_empty_row(sales_person)
 
         summary[sales_person]["sales_order_count"] = count
-        summary[sales_person]["sales_order_amount"] = float(amount or 0)
+        summary[sales_person]["sales_order_amount"] = float(
+            amount or 0
+        )
+
+def add_unpaid_sales_invoice_summary(summary, companies):
+
+    result = frappe.db.sql(
+        """
+        SELECT
+            custom_sales_person_name,
+            COUNT(name),
+            COALESCE(SUM(base_net_total), 0)
+        FROM `tabSales Invoice`
+        WHERE
+            docstatus = 1
+            AND status = 'Unpaid'
+            AND company IN %(companies)s
+            AND custom_sales_person_name IS NOT NULL
+            AND custom_sales_person_name != ''
+        GROUP BY custom_sales_person_name
+        """,
+        {
+            "companies": tuple(companies),
+        },
+    )
+
+    for sales_person, count, amount in result:
+
+        if sales_person not in summary:
+            summary[sales_person] = get_empty_row(sales_person)
+
+        summary[sales_person]["sales_invoice_count"] = count
+        summary[sales_person]["sales_invoice_amount"] = float(
+            amount or 0
+        )
 
 def get_salesperson_totals(companies):
 
@@ -2394,18 +2429,30 @@ def get_salesperson_totals(companies):
     )[0]
 
     sales_order = frappe.db.sql(
+		"""
+		SELECT
+			COUNT(name),
+			COALESCE(SUM(base_net_total), 0)
+		FROM `tabSales Order`
+		WHERE
+			docstatus = 1
+			AND per_delivered = 0
+			AND company IN %(companies)s
+		""",
+		{
+			"companies": tuple(companies),
+		},
+	)[0]
+
+    sales_invoice = frappe.db.sql(
         """
         SELECT
             COUNT(name),
             COALESCE(SUM(base_net_total), 0)
-        FROM `tabSales Order`
+        FROM `tabSales Invoice`
         WHERE
             docstatus = 1
-            AND status IN (
-                'To Deliver',
-                'To Bill',
-                'To Deliver and Bill'
-            )
+            AND status = 'Unpaid'
             AND company IN %(companies)s
         """,
         {
@@ -2419,10 +2466,12 @@ def get_salesperson_totals(companies):
 
         "sales_order_count": sales_order[0] or 0,
         "sales_order_amount": flt(sales_order[1]),
+
+        "sales_invoice_count": sales_invoice[0] or 0,
+        "sales_invoice_amount": flt(sales_invoice[1]),
     }
 
 def get_empty_row(sales_person):
-
     return {
         "sales_person": sales_person,
 
@@ -2431,6 +2480,9 @@ def get_empty_row(sales_person):
 
         "sales_order_count": 0,
         "sales_order_amount": 0,
+
+        "sales_invoice_count": 0,
+        "sales_invoice_amount": 0,
     }
 
 @frappe.whitelist()
@@ -2676,7 +2728,10 @@ def get_top_customer_product():
     companies = get_allowed_companies()
 
     if not companies:
-        return {"rows": []}
+        return {
+            "customers": [],
+            "products": []
+        }
 
     company = companies[0]
 
@@ -2690,7 +2745,10 @@ def get_top_customer_product():
         to_date
     )
 
-    # Top Customers
+    # =========================================================
+    # TOP CUSTOMERS
+    # =========================================================
+
     customers = frappe.db.sql(
         """
         SELECT
@@ -2715,7 +2773,10 @@ def get_top_customer_product():
         as_dict=True,
     )
 
-    # Top Products
+    # =========================================================
+    # TOP PRODUCTS
+    # =========================================================
+
     # Item Code comes from Sales Invoice Item.
     # Item Name comes directly from the Item Master.
     # Revenue is combined by Item Code.
@@ -2747,7 +2808,9 @@ def get_top_customer_product():
         as_dict=True,
     )
 
-    rows = []
+    customer_rows = []
+    product_rows = []
+
     debug_log = []
 
     debug_log.append(
@@ -2758,17 +2821,13 @@ Company Revenue: {company_revenue}
 """
     )
 
-    max_rows = max(
-        len(customers),
-        len(products)
-    )
+    # =========================================================
+    # PROCESS CUSTOMERS
+    # =========================================================
 
-    for i in range(max_rows):
-        customer = customers[i] if i < len(customers) else {}
-        product = products[i] if i < len(products) else {}
+    for index, customer in enumerate(customers, start=1):
 
         customer_revenue = customer.get("revenue") or 0
-        product_revenue = product.get("revenue") or 0
 
         customer_percentage = (
             round(
@@ -2779,6 +2838,36 @@ Company Revenue: {company_revenue}
             else 0
         )
 
+        customer_name = (
+            customer.get("customer_name") or ""
+        ).strip()
+
+        debug_log.append(
+            f"""Customer Rank {index}
+
+Customer:
+    Name: {customer_name}
+    Revenue: {customer_revenue}
+    Percentage: {customer_percentage}%
+
+----------------------------------------
+"""
+        )
+
+        customer_rows.append({
+            "rank": index,
+            "customer": customer_name,
+            "customer_percentage": customer_percentage,
+        })
+
+    # =========================================================
+    # PROCESS PRODUCTS
+    # =========================================================
+
+    for index, product in enumerate(products, start=1):
+
+        product_revenue = product.get("revenue") or 0
+
         product_percentage = (
             round(
                 (product_revenue / company_revenue) * 100,
@@ -2788,11 +2877,19 @@ Company Revenue: {company_revenue}
             else 0
         )
 
-        product_code = (product.get("item_code") or "").strip()
-        product_name = (product.get("item_name") or "").strip()
+        product_code = (
+            (product.get("item_code") or "").strip()
+        )
 
+        product_name = (
+            (product.get("item_name") or "").strip()
+        )
+
+        # Build product display safely
         if product_code and product_name:
-            product_display = f"{product_code} - {product_name}"
+            product_display = (
+                f"{product_code} - {product_name}"
+            )
         elif product_name:
             product_display = product_name
         elif product_code:
@@ -2801,12 +2898,7 @@ Company Revenue: {company_revenue}
             product_display = ""
 
         debug_log.append(
-            f"""Rank {i + 1}
-
-Customer:
-    Name: {customer.get("customer_name", "")}
-    Revenue: {customer_revenue}
-    Percentage: {customer_percentage}%
+            f"""Product Rank {index}
 
 Product:
     Code: {product_code}
@@ -2819,12 +2911,8 @@ Product:
 """
         )
 
-        rows.append({
-            "customer": customer.get(
-                "customer_name",
-                ""
-            ),
-            "customer_percentage": customer_percentage,
+        product_rows.append({
+            "rank": index,
             "product": product_display,
             "product_percentage": product_percentage,
         })
@@ -2835,7 +2923,8 @@ Product:
     )
 
     return {
-        "rows": rows
+        "customers": customer_rows,
+        "products": product_rows
     }
 
 import frappe
@@ -3279,4 +3368,89 @@ def get_sales_invoice_tracker():
 
     return result
 
+@frappe.whitelist()
+def get_salesperson_performance_ranking():
+    companies = get_allowed_companies()
+
+    if not companies:
+        return {
+            "currency_symbol": "",
+            "rows": []
+        }
+
+    company = companies[0]
+
+    currency_symbol = get_currency_symbol(companies)
+
+    fiscal_year = get_company_fiscal_year(company)
+    from_date = fiscal_year["year_start_date"]
+    to_date = getdate()
+
+    # ---------------------------------------------------------
+    # Company Total Revenue
+    # ---------------------------------------------------------
+    company_revenue = get_sales_amount(
+        company,
+        from_date,
+        to_date
+    )
+
+    # ---------------------------------------------------------
+    # Salesperson Revenue
+    # ---------------------------------------------------------
+    salespersons = frappe.db.sql(
+        """
+        SELECT
+            si.custom_sales_person_name AS sales_person,
+            COALESCE(SUM(si.base_net_total), 0) AS revenue
+        FROM `tabSales Invoice` si
+        WHERE
+            si.docstatus = 1
+            AND si.company = %s
+            AND si.posting_date BETWEEN %s AND %s
+            AND si.custom_sales_person_name IS NOT NULL
+            AND si.custom_sales_person_name != ''
+        GROUP BY
+            si.custom_sales_person_name
+        ORDER BY
+            revenue DESC
+        LIMIT 10
+        """,
+        (
+            company,
+            from_date,
+            to_date
+        ),
+        as_dict=True,
+    )
+
+    rows = []
+
+    for salesperson in salespersons:
+
+        revenue = flt(
+            salesperson.get("revenue")
+        )
+
+        percentage = (
+            round(
+                (revenue / company_revenue) * 100,
+                2
+            )
+            if company_revenue
+            else 0
+        )
+
+        rows.append({
+            "sales_person": salesperson.get(
+                "sales_person"
+            ),
+            "revenue": revenue,
+            "percentage": percentage,
+        })
+
+    return {
+        "currency_symbol": currency_symbol,
+        "rows": rows,
+    }
 
