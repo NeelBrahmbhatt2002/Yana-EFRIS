@@ -3375,7 +3375,11 @@ def get_salesperson_performance_ranking():
     if not companies:
         return {
             "currency_symbol": "",
-            "rows": []
+            "rows": [],
+            "total": {
+                "revenue": 0,
+                "percentage": 0
+            }
         }
 
     company = companies[0]
@@ -3388,11 +3392,14 @@ def get_salesperson_performance_ranking():
 
     # ---------------------------------------------------------
     # Company Total Revenue
+    # This is the same value used by Current Yearly Sales
     # ---------------------------------------------------------
-    company_revenue = get_sales_amount(
-        company,
-        from_date,
-        to_date
+    company_revenue = flt(
+        get_sales_amount(
+            company,
+            from_date,
+            to_date
+        )
     )
 
     # ---------------------------------------------------------
@@ -3414,7 +3421,6 @@ def get_salesperson_performance_ranking():
             si.custom_sales_person_name
         ORDER BY
             revenue DESC
-        LIMIT 10
         """,
         (
             company,
@@ -3449,8 +3455,67 @@ def get_salesperson_performance_ranking():
             "percentage": percentage,
         })
 
+    # ---------------------------------------------------------
+    # No Sales Person
+    # ---------------------------------------------------------
+    no_sales_person = frappe.db.sql(
+        """
+        SELECT
+            COALESCE(SUM(si.base_net_total), 0) AS revenue
+        FROM `tabSales Invoice` si
+        WHERE
+            si.docstatus = 1
+            AND si.company = %s
+            AND si.posting_date BETWEEN %s AND %s
+            AND (
+                si.custom_sales_person_name IS NULL
+                OR si.custom_sales_person_name = ''
+            )
+        """,
+        (
+            company,
+            from_date,
+            to_date
+        ),
+        as_dict=True,
+    )
+
+    no_sales_person_revenue = flt(
+        no_sales_person[0].get("revenue")
+        if no_sales_person
+        else 0
+    )
+
+    no_sales_person_percentage = (
+        round(
+            (no_sales_person_revenue / company_revenue) * 100,
+            2
+        )
+        if company_revenue
+        else 0
+    )
+
+    # Add "No Sales Person" only when there is revenue
+    if no_sales_person_revenue > 0:
+
+        rows.append({
+            "sales_person": "No Sales Person",
+            "revenue": no_sales_person_revenue,
+            "percentage": no_sales_person_percentage,
+            "is_unassigned": True,
+        })
+
+    # ---------------------------------------------------------
+    # Total
+    # ---------------------------------------------------------
+    total = {
+        "revenue": company_revenue,
+        "percentage": 100
+    }
+
     return {
         "currency_symbol": currency_symbol,
         "rows": rows,
+        "total": total,
     }
 
