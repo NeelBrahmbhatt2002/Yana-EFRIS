@@ -23,7 +23,7 @@ doctype_js = {
 app_include_js = [
     "/assets/yana_efris/js/exchange_rate_common.js?v=1",
     # "/assets/yana_efris/js/report_auto_company.js",
-    "/assets/yana_efris/js/sidebar.js?v=2.1.0",
+    "/assets/yana_efris/js/sidebar.js?v=2.1.1",
     "/assets/yana_efris/js/open_doctype_new_tab.js",
     "/assets/yana_efris/js/permission_override.js?v=0.0.1",
     "/assets/yana_efris/js/bank_reconciliation_tool.js",
@@ -32,6 +32,8 @@ app_include_js = [
     "/assets/yana_efris/js/company_switcher.js?v=0.1",
     "/assets/yana_efris/js/breadcrumbs.js?v=0.0.1",
     "/assets/yana_efris/js/one_time_print.js",
+    # "/assets/yana_efris/js/cancellation_reason.js",
+    # "/assets/yana_efris/js/cancellation_list.js",
     # "/assets/yana_efris/js/set_company_logo.js"
     # "/assets/yana_efris/js/override_help.js"
 ]
@@ -79,6 +81,7 @@ override_whitelisted_methods = {
         "yana_efris.api.efris_api.get_items",
         "frappe.core.api.file.get_files_in_folder":
         "yana_efris.api.efris_api.get_files_in_folder",
+    # "frappe.desk.form.save.cancel": "yana_efris.api.efris_api.cancel_document",
     # "pos_next.api.items.get_items": "yana_efris.api.efris_api.get_items",
     # "uganda_compliance.efris.api_classes.e_invoice.generate_irn": "yana_efris.api.efris_api.generate_irn"
 }
