@@ -3519,3 +3519,89 @@ def get_salesperson_performance_ranking():
         "total": total,
     }
 
+
+def create_cancellation_log(doctype, name, cancellation_reason):
+    """
+    Create a central cancellation log for a document.
+    """
+
+    cancellation_reason = (cancellation_reason or "").strip()
+
+    if not cancellation_reason:
+        frappe.throw(
+            _("Cancellation reason is mandatory."),
+            title=_("Cancellation Reason Required")
+        )
+
+    if not frappe.db.exists(doctype, name):
+        frappe.throw(
+            _("Document {0} {1} does not exist.").format(
+                _(doctype),
+                name
+            )
+        )
+
+    frappe.get_doc({
+        "doctype": "Cancellation Log",
+        "reference_doctype": doctype,
+        "reference_name": name,
+        "cancellation_reason": cancellation_reason,
+        "cancelled_by": frappe.session.user,
+        "cancelled_on": frappe.utils.now_datetime(),
+    }).insert(ignore_permissions=True)
+
+
+@frappe.whitelist(methods=["POST", "PUT"])
+def cancel_document(
+    doctype=None,
+    name=None,
+    workflow_state_fieldname=None,
+    workflow_state=None,
+    cancellation_reason=None,
+):
+    """
+    Custom cancellation endpoint for YanaERP.
+
+    Extends Frappe's standard cancellation flow by requiring
+    and storing a cancellation reason.
+    """
+
+    cancellation_reason = (cancellation_reason or "").strip()
+
+    if not cancellation_reason:
+        frappe.throw(
+            _("Cancellation reason is mandatory."),
+            title=_("Cancellation Reason Required")
+        )
+
+    doc = frappe.get_doc(doctype, name)
+
+    # Get company directly from the transaction document.
+    company = doc.get("company")
+
+    # Preserve Frappe's workflow-state behaviour.
+    if workflow_state_fieldname and workflow_state:
+        doc.set(workflow_state_fieldname, workflow_state)
+
+    # Create cancellation audit log.
+    frappe.get_doc({
+        "doctype": "Cancellation Log",
+        "reference_doctype": doctype,
+        "reference_name": name,
+        "company": company,
+        "cancellation_reason": cancellation_reason,
+        "cancelled_by": frappe.session.user,
+        "cancelled_on": frappe.utils.now_datetime(),
+    }).insert(ignore_permissions=True)
+
+    # Preserve standard Frappe cancellation.
+    doc.cancel()
+
+    # Preserve standard Frappe response.
+    frappe.desk.form.save.send_updated_docs(doc)
+
+    frappe.msgprint(
+        _("Cancelled"),
+        indicator="red",
+        alert=True
+    )
