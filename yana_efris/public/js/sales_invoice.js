@@ -398,6 +398,50 @@ frappe.ui.form.on("Sales Invoice", {
 				// });
 			},
 		});
+
+		// Clear existing/default value first.
+		// It will be replaced if condition 1 or 2 is satisfied.
+		frm.set_value("custom_sales_person_name", null);
+
+		// --------------------------------------------------
+		// 1. Check Customer's Sales Team
+		// --------------------------------------------------
+		frappe.db.get_doc("Customer", frm.doc.customer).then((customer) => {
+			let customer_sales_person = null;
+
+			if (customer.sales_team && customer.sales_team.length) {
+				customer_sales_person = customer.sales_team[0].sales_person;
+			}
+
+			if (customer_sales_person) {
+				frm.set_value("custom_sales_person_name", customer_sales_person);
+				return;
+			}
+
+			// --------------------------------------------------
+			// 2. Find Sales Person mapped to logged-in User
+			// --------------------------------------------------
+			frappe.db
+				.get_value(
+					"Sales Person",
+					{
+						custom_user: frappe.session.user,
+					},
+					"name",
+				)
+				.then((r) => {
+					if (r.message && r.message.name) {
+						frm.set_value("custom_sales_person_name", r.message.name);
+						return;
+					}
+
+					// --------------------------------------------------
+					// 3. Neither condition satisfied
+					// Keep Sales Person empty for manual selection
+					// --------------------------------------------------
+					frm.set_value("custom_sales_person_name", null);
+				});
+		});
 	},
 	company(frm) {
 		if (frm.doc.company) {
