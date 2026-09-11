@@ -406,6 +406,13 @@ def create_simple_item(rec, company_name):
     item.item_name = name
     item.description = name
 
+    efris_currency_code = rec.get("currency")
+
+    if efris_currency_code == "101":
+        item.efris_currency = "UGX"
+    elif efris_currency_code == "102":
+        item.efris_currency = "USD"
+
     # Other required fields
     item.item_group = "Products"
     item.is_stock_item = 1
@@ -573,19 +580,85 @@ def create_simple_item(rec, company_name):
     # 1️⃣1️⃣ Insert Item
     # ----------------------------------------------------------------------
     try:
+
         item.insert(ignore_permissions=True)
+
         frappe.log_error(
             f"✔ Item INSERTED successfully: name={item_docname}, item_code={code}",
             "Page Skip Debug"
         )
+
+        # ----------------------------------------------------------------------
+        # Create / Update EFRIS Item Price based on EFRIS currency
+        # ----------------------------------------------------------------------
+
+        efris_currency = item.efris_currency
+
+        if efris_currency == "USD":
+            price_list = "Standard Selling USD"
+        else:
+            price_list = "Standard Selling"
+
+        item_price_name = frappe.db.get_value(
+            "Item Price",
+            {
+                "item_code": item.name,
+                "price_list": price_list,
+                "selling": 1
+            },
+            "name"
+        )
+
+        if item_price_name:
+
+            frappe.db.set_value(
+                "Item Price",
+                item_price_name,
+                {
+                    "price_list_rate": selling_rate,
+                    "currency": efris_currency
+                }
+            )
+
+            frappe.log_error(
+                f"✔ Item Price UPDATED: "
+                f"item={item.name}, "
+                f"price_list={price_list}, "
+                f"currency={efris_currency}, "
+                f"rate={selling_rate}",
+                "EFRIS ITEM PRICE"
+            )
+
+        else:
+
+            price_doc = frappe.new_doc("Item Price")
+            price_doc.item_code = item.name
+            price_doc.price_list = price_list
+            price_doc.selling = 1
+            price_doc.price_list_rate = selling_rate
+            price_doc.currency = efris_currency
+            price_doc.uom = item.stock_uom
+            price_doc.insert(ignore_permissions=True)
+
+            frappe.log_error(
+                f"✔ Item Price CREATED: "
+                f"item={item.name}, "
+                f"price_list={price_list}, "
+                f"currency={efris_currency}, "
+                f"rate={selling_rate}",
+                "EFRIS ITEM PRICE"
+            )
+
     except Exception as e:
+
         tb = frappe.get_traceback()
+
         frappe.log_error(
             f"❌ INSERT FAILED for {item_docname}: {e}\nTRACE:\n{tb}",
             "Page Skip Debug"
         )
-        return False
 
+        return False
     # ----------------------------------------------------------------------
     # 1️⃣2️⃣ Stock Reconciliation (opening stock)
     # ----------------------------------------------------------------------
