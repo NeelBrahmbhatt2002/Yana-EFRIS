@@ -3370,15 +3370,32 @@ def get_sales_invoice_tracker():
 
 @frappe.whitelist()
 def get_salesperson_performance_ranking():
+
     companies = get_allowed_companies()
 
     if not companies:
         return {
             "currency_symbol": "",
-            "rows": [],
-            "total": {
-                "revenue": 0,
-                "percentage": 0
+            "current_month": {
+                "rows": [],
+                "total": {
+                    "revenue": 0,
+                    "percentage": 0
+                }
+            },
+            "previous_month": {
+                "rows": [],
+                "total": {
+                    "revenue": 0,
+                    "percentage": 0
+                }
+            },
+            "yearly": {
+                "rows": [],
+                "total": {
+                    "revenue": 0,
+                    "percentage": 0
+                }
             }
         }
 
@@ -3386,137 +3403,211 @@ def get_salesperson_performance_ranking():
 
     currency_symbol = get_currency_symbol(companies)
 
+    today = getdate()
+
+    # =========================================================
+    # DATE RANGES
+    # =========================================================
+
+    # ---------------------------------------------------------
+    # Current Month
+    # ---------------------------------------------------------
+
+    current_month_from = today.replace(day=1)
+    current_month_to = today
+
+    # ---------------------------------------------------------
+    # Previous Month
+    # ---------------------------------------------------------
+
+    previous_month_to = current_month_from - timedelta(days=1)
+    previous_month_from = previous_month_to.replace(day=1)
+
+    # ---------------------------------------------------------
+    # Yearly / Fiscal Year
+    # ---------------------------------------------------------
+
     fiscal_year = get_company_fiscal_year(company)
-    from_date = fiscal_year["year_start_date"]
-    to_date = getdate()
 
-    # ---------------------------------------------------------
-    # Company Total Revenue
-    # This is the same value used by Current Yearly Sales
-    # ---------------------------------------------------------
-    company_revenue = flt(
-        get_sales_amount(
-            company,
-            from_date,
-            to_date
-        )
-    )
+    yearly_from = fiscal_year["year_start_date"]
+    yearly_to = today
 
-    # ---------------------------------------------------------
-    # Salesperson Revenue
-    # ---------------------------------------------------------
-    salespersons = frappe.db.sql(
-        """
-        SELECT
-            si.custom_sales_person_name AS sales_person,
-            COALESCE(SUM(si.base_net_total), 0) AS revenue
-        FROM `tabSales Invoice` si
-        WHERE
-            si.docstatus = 1
-            AND si.company = %s
-            AND si.posting_date BETWEEN %s AND %s
-            AND si.custom_sales_person_name IS NOT NULL
-            AND si.custom_sales_person_name != ''
-        GROUP BY
-            si.custom_sales_person_name
-        ORDER BY
-            revenue DESC
-        """,
-        (
-            company,
-            from_date,
-            to_date
-        ),
-        as_dict=True,
-    )
 
-    rows = []
+    # =========================================================
+    # HELPER
+    # =========================================================
 
-    for salesperson in salespersons:
+    def get_ranking(from_date, to_date):
 
-        revenue = flt(
-            salesperson.get("revenue")
+        # -----------------------------------------------------
+        # Company Total Revenue
+        # -----------------------------------------------------
+
+        company_revenue = flt(
+            get_sales_amount(
+                company,
+                from_date,
+                to_date
+            )
         )
 
-        percentage = (
+        # -----------------------------------------------------
+        # Salesperson Revenue
+        # -----------------------------------------------------
+
+        salespersons = frappe.db.sql(
+            """
+            SELECT
+                si.custom_sales_person_name AS sales_person,
+                COALESCE(SUM(si.base_net_total), 0) AS revenue
+            FROM `tabSales Invoice` si
+            WHERE
+                si.docstatus = 1
+                AND si.company = %s
+                AND si.posting_date BETWEEN %s AND %s
+                AND si.custom_sales_person_name IS NOT NULL
+                AND si.custom_sales_person_name != ''
+            GROUP BY
+                si.custom_sales_person_name
+            ORDER BY
+                revenue DESC
+            """,
+            (
+                company,
+                from_date,
+                to_date
+            ),
+            as_dict=True,
+        )
+
+        rows = []
+
+        for salesperson in salespersons:
+
+            revenue = flt(
+                salesperson.get("revenue")
+            )
+
+            percentage = (
+                round(
+                    (revenue / company_revenue) * 100,
+                    2
+                )
+                if company_revenue
+                else 0
+            )
+
+            rows.append({
+                "sales_person": salesperson.get(
+                    "sales_person"
+                ),
+                "revenue": revenue,
+                "percentage": percentage,
+            })
+
+
+        # -----------------------------------------------------
+        # No Sales Person
+        # -----------------------------------------------------
+
+        no_sales_person = frappe.db.sql(
+            """
+            SELECT
+                COALESCE(SUM(si.base_net_total), 0) AS revenue
+            FROM `tabSales Invoice` si
+            WHERE
+                si.docstatus = 1
+                AND si.company = %s
+                AND si.posting_date BETWEEN %s AND %s
+                AND (
+                    si.custom_sales_person_name IS NULL
+                    OR si.custom_sales_person_name = ''
+                )
+            """,
+            (
+                company,
+                from_date,
+                to_date
+            ),
+            as_dict=True,
+        )
+
+        no_sales_person_revenue = flt(
+            no_sales_person[0].get("revenue")
+            if no_sales_person
+            else 0
+        )
+
+        no_sales_person_percentage = (
             round(
-                (revenue / company_revenue) * 100,
+                (
+                    no_sales_person_revenue
+                    / company_revenue
+                ) * 100,
                 2
             )
             if company_revenue
             else 0
         )
 
-        rows.append({
-            "sales_person": salesperson.get(
-                "sales_person"
-            ),
-            "revenue": revenue,
-            "percentage": percentage,
-        })
+        # Add only when there is revenue
+        if no_sales_person_revenue > 0:
 
-    # ---------------------------------------------------------
-    # No Sales Person
-    # ---------------------------------------------------------
-    no_sales_person = frappe.db.sql(
-        """
-        SELECT
-            COALESCE(SUM(si.base_net_total), 0) AS revenue
-        FROM `tabSales Invoice` si
-        WHERE
-            si.docstatus = 1
-            AND si.company = %s
-            AND si.posting_date BETWEEN %s AND %s
-            AND (
-                si.custom_sales_person_name IS NULL
-                OR si.custom_sales_person_name = ''
-            )
-        """,
-        (
-            company,
-            from_date,
-            to_date
-        ),
-        as_dict=True,
+            rows.append({
+                "sales_person": "No Sales Person",
+                "revenue": no_sales_person_revenue,
+                "percentage": no_sales_person_percentage,
+                "is_unassigned": True,
+            })
+
+
+        # -----------------------------------------------------
+        # Total
+        # -----------------------------------------------------
+
+        total = {
+            "revenue": company_revenue,
+            "percentage": 100 if company_revenue else 0
+        }
+
+        return {
+            "rows": rows,
+            "total": total,
+        }
+
+
+    # =========================================================
+    # BUILD ALL THREE RANKINGS
+    # =========================================================
+
+    current_month = get_ranking(
+        current_month_from,
+        current_month_to
     )
 
-    no_sales_person_revenue = flt(
-        no_sales_person[0].get("revenue")
-        if no_sales_person
-        else 0
+    previous_month = get_ranking(
+        previous_month_from,
+        previous_month_to
     )
 
-    no_sales_person_percentage = (
-        round(
-            (no_sales_person_revenue / company_revenue) * 100,
-            2
-        )
-        if company_revenue
-        else 0
+    yearly = get_ranking(
+        yearly_from,
+        yearly_to
     )
 
-    # Add "No Sales Person" only when there is revenue
-    if no_sales_person_revenue > 0:
 
-        rows.append({
-            "sales_person": "No Sales Person",
-            "revenue": no_sales_person_revenue,
-            "percentage": no_sales_person_percentage,
-            "is_unassigned": True,
-        })
-
-    # ---------------------------------------------------------
-    # Total
-    # ---------------------------------------------------------
-    total = {
-        "revenue": company_revenue,
-        "percentage": 100
-    }
+    # =========================================================
+    # RETURN
+    # =========================================================
 
     return {
         "currency_symbol": currency_symbol,
-        "rows": rows,
-        "total": total,
+
+        "current_month": current_month,
+
+        "previous_month": previous_month,
+
+        "yearly": yearly,
     }
 
 
