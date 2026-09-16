@@ -173,6 +173,7 @@ const CUSTOM_MENUS_2 = [
 		title: "Manufacturing",
 		icon: "organization",
 		items: [
+			{ label: "BOM", link: "/app/bom", icon: "" },
 			{ label: "Work Order", link: "/app/work-order", icon: "" },
 			{ label: "Production Plan", link: "/app/production-plan", icon: "" },
 			{ label: "Stock Entry", link: "/app/stock-entry", icon: "" },
