@@ -3696,3 +3696,21 @@ def cancel_document(
         indicator="red",
         alert=True
     )
+
+def decode_e_tax_rate(tax_rate, e_tax_category):
+
+    e_tax_code = e_tax_category.split(':')[0]
+
+    if e_tax_code == '01':
+        return '0.18'
+
+    if e_tax_code == '02':
+        return '0'
+
+    if e_tax_code == '03':
+        return '-'
+
+    if e_tax_code == '11':
+        return '0.18'
+
+    return str(tax_rate)

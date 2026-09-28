@@ -9,6 +9,7 @@ from uganda_compliance.efris.doctype.e_invoice.e_invoice import _get_valid_docum
 from uganda_compliance.efris.doctype.e_invoice.e_invoice import _calculate_taxes_and_discounts
 from uganda_compliance.efris.doctype.e_invoice.e_invoice import calculate_tax_by_category
 from uganda_compliance.efris.doctype.e_invoicing_settings.e_invoicing_settings import get_e_company_settings
+from yana_efris.api.efris_api import decode_e_tax_rate
 
 def get_einvoice_json(self, sales_invoice):
     """
@@ -243,6 +244,158 @@ def get_tax_details(self):
 
 
     return {"taxDetails": tax_details_list}
+
+def get_good_details(self):
+		item_list = []
+		unique_items = set()
+
+		orderNumber = 0
+		discount_percentage = self.additional_discount_percentage if self.additional_discount_percentage else 0
+
+		item_code = ""
+		goodsCode = ""
+		discount_tax = 0.0
+		discountTaxRate = ""
+
+		for row in self.items:
+
+			# Decode EFRIS tax rate based on E Tax Category
+			taxRate = decode_e_tax_rate(str(row.gst_rate), row.e_tax_category)
+
+			# Temporary debug log to verify E Tax Category and decoded tax rate
+			frappe.log_error(
+				title="EFRIS TAX DEBUG",
+				message=f"""
+Item Code: {row.item_code}
+GST Rate: {row.gst_rate}
+E Tax Category: {row.e_tax_category}
+Decoded Tax Rate: {taxRate}
+"""
+			)
+
+			item_code = row.item_code
+			goodsCode = frappe.db.get_value(
+				"Item",
+				{"item_code": item_code},
+				"efris_product_code"
+			)
+
+			if goodsCode:
+				item_code = goodsCode
+
+			# Create a unique identifier for the item
+			if self._is_duplicate_item(row, unique_items):
+				continue
+
+			inv_uom = frappe.get_doc("UOM", row.unit)
+			efris_uom_code = inv_uom.efris_uom_code
+
+			# Calculate the discount amount if applicable
+			discount_amount = 0.0
+			discountFlag = "0"
+			tax = row.tax
+			discounted_item = row.item_name
+
+			if discount_percentage > 0:
+				discount_amount, discountFlag, discounted_item, discountTaxRate = self.calculate_discounts(
+					row,
+					discount_percentage,
+					taxRate
+				)
+
+			item, discount_item = self._prepare_item_details(
+				row,
+				item_code,
+				taxRate,
+				efris_uom_code,
+				discount_percentage,
+				orderNumber,
+				discount_amount,
+				discountFlag,
+				discounted_item,
+				discountTaxRate
+			)
+
+			item_list.append(item)
+			orderNumber += 1
+
+			if discount_item:
+				item_list.append(discount_item)
+				orderNumber += 1
+
+		return {"goodsDetails": item_list}
+
+def _prepare_item_details(self, row, item_code, tax_rate, efris_uom_code, discount_percentage, order_number, discount_amount, discount_flag, discounted_item, discount_tax_rate):
+
+		# Identify EFRIS VAT Out of Scope category
+		e_tax_code = str(row.e_tax_category).split(':')[0] if row.e_tax_category else ""
+		is_out_of_scope = e_tax_code == "11"
+
+		# For EFRIS 11:F (VAT Out of Scope):
+		# taxRate is reported as 18%, but actual tax amount is 0.
+		if is_out_of_scope:
+			tax = 0.0
+		elif tax_rate == '0.18' and discount_percentage > 0:
+			tax = row.efris_dsct_item_tax
+		else:
+			tax = row.tax
+
+		item = {
+			"item": row.item_name,
+			"itemCode": item_code,
+			"qty": str(row.quantity),
+			"unitOfMeasure": efris_uom_code,
+			"unitPrice": str(row.rate),
+			"total": str(row.amount),
+			"taxRate": str(tax_rate),
+			"tax": str(tax),
+			"discountTotal": str(discount_amount) if discount_percentage > 0 else "",
+			"discountTaxRate": str(discount_tax_rate),
+			"orderNumber": str(order_number),
+			"discountFlag": discount_flag if discount_percentage > 0 else "2",
+			"deemedFlag": "2",
+			"exciseFlag": "2",
+			"categoryId": "",
+			"categoryName": "",
+			"goodsCategoryId": row.efris_commodity_code,
+			"goodsCategoryName": row.commodity_code_description,
+			"vatApplicableFlag": "1",
+		}
+
+		discount_item = None
+
+		if discount_percentage > 0:
+
+			if is_out_of_scope:
+				discount_tax = 0.0
+			elif tax_rate == '0.18':
+				discount_tax = row.efris_dsct_discount_tax
+			else:
+				discount_tax = tax
+
+			discount_item = {
+				"item": discounted_item,
+				"itemCode": item_code,
+				"qty": "",
+				"unitOfMeasure": "",
+				"unitPrice": "",
+				"total": str(discount_amount),
+				"taxRate": str(tax_rate),
+				"tax": str(discount_tax),
+				"discountTotal": "",
+				"discountTaxRate": str(discount_tax_rate),
+				"orderNumber": str(order_number + 1),
+				"discountFlag": "0",
+				"deemedFlag": "2",
+				"exciseFlag": "2",
+				"categoryId": "",
+				"categoryName": "",
+				"goodsCategoryId": row.efris_commodity_code,
+				"goodsCategoryName": "",
+				"vatApplicableFlag": "1",
+			}
+
+		return item, discount_item
 
 
 # def calculate_tax_by_category(invoice):
