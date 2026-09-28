@@ -57,6 +57,9 @@ fixtures = [
 ]
 
 doc_events = {
+    "Company": {
+        "after_insert": "yana_efris.api.auto_implementation.add_company_to_current_fiscal_year"
+    }
     # "Sales Invoice": {
     #     "autoname": "yana_efris.utils.custom_naming.custom_autoname",
     # },

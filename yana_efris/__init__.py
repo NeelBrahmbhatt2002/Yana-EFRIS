@@ -16,6 +16,10 @@ from frappe.model import delete_doc
 # Override generate_irn (already working fine)
 e_invoice.EInvoiceAPI.generate_irn = efris_api.generate_irn
 e_invoice.EInvoiceAPI.synchronize_e_invoice = efris_api.synchronize_e_invoice
+# e_invoice.decode_e_tax_rate = efris_api.decode_e_tax_rate
+
+# original_doceinvoice.EInvoice._prepare_item_details = yana_einvoice._prepare_item_details
+# original_doceinvoice.EInvoice.get_good_details = yana_einvoice.get_good_details
 
 delete_doc.check_permission_and_not_submitted = efris_api.check_permission_and_not_submitted
 
