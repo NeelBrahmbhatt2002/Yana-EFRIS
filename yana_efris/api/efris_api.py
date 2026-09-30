@@ -3714,3 +3714,84 @@ def decode_e_tax_rate(tax_rate, e_tax_category):
         return '0.18'
 
     return str(tax_rate)
+
+from frappe.utils import flt
+
+
+@frappe.whitelist()
+def get_last_purchase_price(
+    item_code,
+    supplier,
+    doctype,
+    company,
+    currency=None,
+    current_docname=None,
+):
+    if not item_code or not supplier or not doctype or not company:
+        return None
+
+    if doctype not in ["Purchase Order", "Purchase Invoice"]:
+        frappe.throw("Invalid Purchase transaction type")
+
+    if doctype == "Purchase Order":
+        parent_table = "`tabPurchase Order`"
+        child_table = "`tabPurchase Order Item`"
+        date_field = "transaction_date"
+
+    else:
+        parent_table = "`tabPurchase Invoice`"
+        child_table = "`tabPurchase Invoice Item`"
+        date_field = "posting_date"
+
+    conditions = [
+        "doc.supplier = %(supplier)s",
+        "doc.company = %(company)s",
+        "doc.docstatus = 1",
+        "item.item_code = %(item_code)s",
+    ]
+
+    if currency:
+        conditions.append("doc.currency = %(currency)s")
+
+    if current_docname:
+        conditions.append("doc.name != %(current_docname)s")
+
+    result = frappe.db.sql(
+        f"""
+        SELECT
+            doc.name,
+            doc.{date_field} AS transaction_date,
+            doc.currency,
+            item.item_code,
+            item.uom,
+            item.rate
+        FROM {parent_table} doc
+        INNER JOIN {child_table} item
+            ON item.parent = doc.name
+        WHERE
+            {" AND ".join(conditions)}
+        ORDER BY
+            doc.{date_field} DESC,
+            doc.creation DESC
+        LIMIT 1
+        """,
+        {
+            "supplier": supplier,
+            "company": company,
+            "item_code": item_code,
+            "currency": currency,
+            "current_docname": current_docname,
+        },
+        as_dict=True,
+    )
+
+    if not result:
+        return None
+
+    return {
+        "rate": flt(result[0].rate),
+        "currency": result[0].currency,
+        "uom": result[0].uom,
+        "document": result[0].name,
+        "transaction_date": result[0].transaction_date,
+    }

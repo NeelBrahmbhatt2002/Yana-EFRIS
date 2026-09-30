@@ -123,6 +123,11 @@ const CUSTOM_MENUS_2 = [
 		items: [
 			{ label: "Journal Entry", link: "/app/journal-entry", icon: "" },
 			{ label: "Chart Of Accounts", link: "/app/account/view/tree", icon: "" },
+			{
+				label: "Opening Invoice Creation Tool",
+				link: "/app/opening-invoice-creation-tool/Opening Invoice Creation Tool",
+				icon: "",
+			},
 		],
 	},
 	{

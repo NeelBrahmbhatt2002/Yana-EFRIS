@@ -124,6 +124,7 @@ frappe.ui.form.on("Purchase Order", {
 	refresh(frm) {
 		toggle_efris_stock_column(frm);
 		update_items_label(frm);
+		// load_last_purchase_prices(frm);
 
 		if (frm.is_new()) return;
 
@@ -171,6 +172,11 @@ frappe.ui.form.on("Purchase Order", {
 	},
 	supplier: function (frm) {
 		if (!frm.doc.supplier) return;
+		// clear_last_purchase_prices(frm);
+
+		// if (frm.doc.supplier) {
+		// 	load_last_purchase_prices(frm);
+		// }
 
 		frappe.call({
 			method: "yana_efris.api.efris_api.get_supplier_payable_summary",
@@ -198,14 +204,22 @@ frappe.ui.form.on("Purchase Order", {
 		});
 	},
 	currency(frm) {
+		// clear_last_purchase_prices(frm);
 		fetch_and_set_exchange_rate_common(frm);
+		// if (frm.doc.currency && frm.doc.supplier) {
+		// 	load_last_purchase_prices(frm);
+		// }
 	},
+	// items_add(frm, cdt, cdn) {
+	// 	fetch_last_purchase_price(frm, cdt, cdn);
+	// },
 });
 
 frappe.ui.form.on("Purchase Order Item", {
 	item_code: function (frm, cdt, cdn) {
 		const row = frappe.get_doc(cdt, cdn);
 		if (!row.item_code || !frm.doc.company) return;
+		// fetch_last_purchase_price(frm, cdt, cdn);
 
 		// 🔹 Step 1: Check if company is EFRIS
 		frappe.db.get_value("Company", frm.doc.company, "efris_company").then((r) => {
@@ -288,3 +302,52 @@ frappe.ui.form.on("Purchase Order Item", {
 		});
 	},
 });
+
+function clear_last_purchase_prices(frm) {
+	(frm.doc.items || []).forEach((row) => {
+		frappe.model.set_value(row.doctype, row.name, "custom_last_purchase_price", null);
+	});
+}
+
+function load_last_purchase_prices(frm) {
+	if (!frm.doc.supplier || !frm.doc.currency) {
+		return;
+	}
+
+	(frm.doc.items || []).forEach((row) => {
+		if (row.item_code) {
+			fetch_last_purchase_price(frm, row.doctype, row.name);
+		}
+	});
+}
+
+function fetch_last_purchase_price(frm, cdt, cdn) {
+	const row = locals[cdt][cdn];
+
+	if (!row || !row.item_code || !frm.doc.supplier || !frm.doc.currency) {
+		return;
+	}
+
+	frappe.call({
+		method: "yana_efris.api.efris_api.get_last_purchase_price",
+
+		args: {
+			item_code: row.item_code,
+			supplier: frm.doc.supplier,
+			company: frm.doc.company,
+			currency: frm.doc.currency,
+			doctype: "Purchase Order",
+			current_docname: frm.doc.name,
+		},
+
+		callback(r) {
+			if (!r.message) {
+				frappe.model.set_value(cdt, cdn, "custom_last_purchase_price", null);
+
+				return;
+			}
+
+			frappe.model.set_value(cdt, cdn, "custom_last_purchase_price", r.message.rate);
+		},
+	});
+}
