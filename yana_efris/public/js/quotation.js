@@ -360,7 +360,7 @@ function clear_last_sales_prices(frm) {
 }
 
 function load_last_sales_prices(frm) {
-	if (!frm.doc.customer || !frm.doc.company || !frm.doc.currency) {
+	if (!frm.doc.party_name || !frm.doc.company || !frm.doc.currency) {
 		return;
 	}
 
@@ -375,13 +375,7 @@ function fetch_last_sales_price(frm, cdt, cdn) {
 	console.log("Fetching last sales price for row:", cdt, cdn);
 	const row = locals[cdt][cdn];
 
-	if (
-		!row ||
-		!row.item_code ||
-		!frm.doc.customer_name ||
-		!frm.doc.company ||
-		!frm.doc.currency
-	) {
+	if (!row || !row.item_code || !frm.doc.party_name || !frm.doc.company || !frm.doc.currency) {
 		return;
 	}
 
@@ -390,7 +384,7 @@ function fetch_last_sales_price(frm, cdt, cdn) {
 
 		args: {
 			item_code: row.item_code,
-			customer: frm.doc.customer_name,
+			customer: frm.doc.party_name,
 			company: frm.doc.company,
 			currency: frm.doc.currency,
 			doctype: "Quotation",
