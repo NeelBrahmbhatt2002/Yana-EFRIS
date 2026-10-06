@@ -116,7 +116,7 @@ frappe.ui.form.on("Purchase Invoice", {
 	onload(frm) {
 		toggle_efris_stock_column(frm);
 		update_items_label(frm);
-		// load_last_purchase_prices(frm);
+		load_last_purchase_prices(frm);
 
 		if (frm.is_new()) return;
 
@@ -166,10 +166,10 @@ frappe.ui.form.on("Purchase Invoice", {
 	company(frm) {
 		toggle_efris_stock_column(frm);
 		update_items_label(frm);
-		// clear_last_purchase_prices(frm);
-		// if (frm.doc.company && frm.doc.supplier) {
-		// 	load_last_purchase_prices(frm);
-		// }
+		clear_last_purchase_prices(frm);
+		if (frm.doc.company && frm.doc.supplier) {
+			load_last_purchase_prices(frm);
+		}
 	},
 	refresh(frm) {
 		toggle_efris_stock_column(frm);
@@ -177,7 +177,7 @@ frappe.ui.form.on("Purchase Invoice", {
 	},
 	supplier: function (frm) {
 		if (!frm.doc.supplier) return;
-		// clear_last_purchase_prices(frm);
+		clear_last_purchase_prices(frm);
 
 		frappe.call({
 			method: "yana_efris.api.efris_api.get_supplier_payable_summary",
@@ -206,20 +206,20 @@ frappe.ui.form.on("Purchase Invoice", {
 	},
 	currency(frm) {
 		fetch_and_set_exchange_rate_common(frm);
-		// clear_last_purchase_prices(frm);
-		// if (frm.doc.currency && frm.doc.supplier) {
-		// 	load_last_purchase_prices(frm);
-		// }
+		clear_last_purchase_prices(frm);
+		if (frm.doc.currency && frm.doc.supplier) {
+			load_last_purchase_prices(frm);
+		}
 	},
-	// items_add(frm, cdt, cdn) {
-	// 	fetch_last_purchase_price(frm, cdt, cdn);
-	// },
+	items_add(frm, cdt, cdn) {
+		fetch_last_purchase_price(frm, cdt, cdn);
+	},
 });
 
 frappe.ui.form.on("Purchase Invoice Item", {
 	item_code: function (frm, cdt, cdn) {
 		const row = frappe.get_doc(cdt, cdn);
-		// fetch_last_purchase_price(frm, cdt, cdn);
+		fetch_last_purchase_price(frm, cdt, cdn);
 		if (!row.item_code || !frm.doc.company) return;
 
 		// 🔹 Step 1: Check if company is EFRIS

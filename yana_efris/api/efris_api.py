@@ -3795,3 +3795,103 @@ def get_last_purchase_price(
         "document": result[0].name,
         "transaction_date": result[0].transaction_date,
     }
+
+@frappe.whitelist()
+def get_last_sales_price(
+    item_code,
+    customer,
+    doctype,
+    company,
+    currency=None,
+    current_docname=None,
+):
+    if not item_code or not customer or not doctype or not company:
+        return None
+
+    if doctype not in [
+        "Quotation",
+        "Sales Order",
+        "Sales Invoice",
+    ]:
+        frappe.throw("Invalid Sales transaction type")
+
+    if doctype == "Quotation":
+        parent_table = "`tabQuotation`"
+        child_table = "`tabQuotation Item`"
+        date_field = "transaction_date"
+
+        party_condition = """
+            doc.party_name = %(customer)s
+            AND doc.quotation_to = 'Customer'
+        """
+
+    elif doctype == "Sales Order":
+        parent_table = "`tabSales Order`"
+        child_table = "`tabSales Order Item`"
+        date_field = "transaction_date"
+
+        party_condition = """
+            doc.customer = %(customer)s
+        """
+
+    else:
+        parent_table = "`tabSales Invoice`"
+        child_table = "`tabSales Invoice Item`"
+        date_field = "posting_date"
+
+        party_condition = """
+            doc.customer = %(customer)s
+        """
+
+    conditions = [
+        party_condition,
+        "doc.company = %(company)s",
+        "doc.docstatus = 1",
+        "item.item_code = %(item_code)s",
+    ]
+
+    if currency:
+        conditions.append("doc.currency = %(currency)s")
+
+    if current_docname:
+        conditions.append("doc.name != %(current_docname)s")
+
+    result = frappe.db.sql(
+        f"""
+        SELECT
+            doc.name,
+            doc.{date_field} AS transaction_date,
+            doc.currency,
+            item.item_code,
+            item.uom,
+            item.rate
+        FROM {parent_table} doc
+        INNER JOIN {child_table} item
+            ON item.parent = doc.name
+        WHERE
+            {" AND ".join(conditions)}
+        ORDER BY
+            doc.{date_field} DESC,
+            doc.creation DESC
+        LIMIT 1
+        """,
+        {
+            "customer": customer,
+            "company": company,
+            "item_code": item_code,
+            "currency": currency,
+            "current_docname": current_docname,
+        },
+        as_dict=True,
+    )
+
+    if not result:
+        return None
+
+    return {
+        "rate": flt(result[0].rate),
+        "currency": result[0].currency,
+        "uom": result[0].uom,
+        "document": result[0].name,
+        "transaction_date": result[0].transaction_date,
+    }

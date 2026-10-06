@@ -152,6 +152,7 @@ frappe.ui.form.on("Sales Invoice", {
 	// },
 	refresh: async function (frm) {
 		console.log("Client Script Executed");
+		load_sales_invoice_last_sales_prices(frm);
 
 		if (frm.doc.docstatus !== 0) return;
 
@@ -374,6 +375,12 @@ frappe.ui.form.on("Sales Invoice", {
 	customer: function (frm) {
 		if (!frm.doc.customer) return;
 
+		clear_sales_invoice_last_sales_prices(frm);
+
+		if (frm.doc.customer) {
+			load_sales_invoice_last_sales_prices(frm);
+		}
+
 		frappe.call({
 			method: "yana_efris.api.efris_api.get_customer_credit_summary",
 			args: {
@@ -444,6 +451,10 @@ frappe.ui.form.on("Sales Invoice", {
 		});
 	},
 	company(frm) {
+		clear_sales_invoice_last_sales_prices(frm);
+		if (frm.doc.company && frm.doc.customer) {
+			load_sales_invoice_last_sales_prices(frm);
+		}
 		if (frm.doc.company) {
 			// frappe.call({
 			// 	method: "yana_efris.api.efris_api.fetch_efris_branches",
@@ -476,6 +487,10 @@ frappe.ui.form.on("Sales Invoice", {
 		}
 	},
 	currency(frm) {
+		clear_sales_invoice_last_sales_prices(frm);
+		if (frm.doc.currency && frm.doc.customer) {
+			load_sales_invoice_last_sales_prices(frm);
+		}
 		fetch_and_set_exchange_rate_common(frm);
 	},
 
@@ -548,6 +563,10 @@ frappe.ui.form.on("Sales Invoice", {
 				});
 			}
 		});
+	},
+
+	items_add(frm, cdt, cdn) {
+		fetch_sales_invoice_last_sales_price(frm, cdt, cdn);
 	},
 
 	custom_is_new_customer: function (frm) {
@@ -637,6 +656,7 @@ frappe.ui.form.on("Sales Invoice", {
 
 frappe.ui.form.on("Sales Invoice Item", {
 	item_code: function (frm, cdt, cdn) {
+		fetch_sales_invoice_last_sales_price(frm, cdt, cdn);
 		const row = frappe.get_doc(cdt, cdn);
 		if (!row.item_code || !frm.doc.company) return;
 
@@ -722,3 +742,55 @@ frappe.ui.form.on("Sales Invoice Item", {
 		});
 	},
 });
+
+function clear_sales_invoice_last_sales_prices(frm) {
+	(frm.doc.items || []).forEach((row) => {
+		row.custom_last_sales_price = null;
+	});
+
+	frm.refresh_field("items");
+}
+
+function load_sales_invoice_last_sales_prices(frm) {
+	if (!frm.doc.customer || !frm.doc.company || !frm.doc.currency) {
+		return;
+	}
+
+	(frm.doc.items || []).forEach((row) => {
+		if (row.item_code) {
+			fetch_sales_invoice_last_sales_price(frm, row.doctype, row.name);
+		}
+	});
+}
+
+function fetch_sales_invoice_last_sales_price(frm, cdt, cdn) {
+	const row = locals[cdt][cdn];
+
+	if (!row || !row.item_code || !frm.doc.customer || !frm.doc.company || !frm.doc.currency) {
+		return;
+	}
+
+	frappe.call({
+		method: "yana_efris.api.efris_api.get_last_sales_price",
+
+		args: {
+			item_code: row.item_code,
+			customer: frm.doc.customer,
+			company: frm.doc.company,
+			currency: frm.doc.currency,
+			doctype: "Sales Invoice",
+			current_docname: frm.doc.name,
+		},
+
+		callback(r) {
+			if (!r.message) {
+				row.custom_last_sales_price = null;
+				frm.refresh_field("items");
+				return;
+			}
+
+			row.custom_last_sales_price = r.message.rate;
+			frm.refresh_field("items");
+		},
+	});
+}
