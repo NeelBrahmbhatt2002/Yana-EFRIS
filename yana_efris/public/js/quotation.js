@@ -121,8 +121,16 @@ frappe.ui.form.on("Quotation", {
 	company(frm) {
 		toggle_efris_stock_column(frm);
 		update_items_label(frm);
+		clear_last_sales_prices(frm);
+		if (frm.doc.company && frm.doc.customer_name) {
+			load_last_sales_prices(frm);
+		}
 	},
 	party_name(frm) {
+		clear_last_sales_prices(frm);
+		if (frm.doc.customer_name) {
+			load_last_sales_prices(frm);
+		}
 		// Only apply this logic when Quotation To is Customer
 		if (frm.doc.quotation_to !== "Customer") {
 			frm.set_value("custom_sales_person_name", null);
@@ -180,6 +188,7 @@ frappe.ui.form.on("Quotation", {
 	refresh(frm) {
 		toggle_efris_stock_column(frm);
 		update_items_label(frm);
+		load_last_sales_prices(frm);
 
 		if (frm.is_new()) return;
 
@@ -242,27 +251,14 @@ frappe.ui.form.on("Quotation", {
 		});
 	},
 	currency(frm) {
-		// if (frm.doc.currency && frm.doc.company) {
-		// 	frappe.call({
-		// 		method: "yana_efris.api.efris_api.get_exchange_rate",
-		// 		args: {
-		// 			currency: frm.doc.currency,
-		// 			company_name: frm.doc.company,
-		// 		},
-		// 		callback: function (r) {
-		// 			// console.log("Response is", r);
-		// 			if (!r.message) return;
-		// 			if (r.message) {
-		// 				let rate = parseFloat(r.message.rate) || null;
-		// 				if (rate) {
-		// 					frm.set_value("conversion_rate", rate);
-		// 					rate !== 1 && frappe.msgprint(`Exchange Rate from EFRIS: ${rate}`);
-		// 				}
-		// 			}
-		// 		},
-		// 	});
-		// }
+		clear_last_sales_prices(frm);
+		if (frm.doc.currency && frm.doc.customer_name) {
+			load_last_sales_prices(frm);
+		}
 		fetch_and_set_exchange_rate_common(frm);
+	},
+	items_add(frm, cdt, cdn) {
+		fetch_last_sales_price(frm, cdt, cdn);
 	},
 });
 
@@ -270,6 +266,8 @@ frappe.ui.form.on("Quotation Item", {
 	item_code: function (frm, cdt, cdn) {
 		const row = frappe.get_doc(cdt, cdn);
 		if (!row.item_code || !frm.doc.company) return;
+
+		fetch_last_sales_price(frm, cdt, cdn);
 
 		// 🔹 Step 1: Check if company is EFRIS
 		frappe.db.get_value("Company", frm.doc.company, "efris_company").then((r) => {
@@ -352,3 +350,62 @@ frappe.ui.form.on("Quotation Item", {
 		});
 	},
 });
+
+function clear_last_sales_prices(frm) {
+	(frm.doc.items || []).forEach((row) => {
+		row.custom_last_sales_price = null;
+	});
+
+	frm.refresh_field("items");
+}
+
+function load_last_sales_prices(frm) {
+	if (!frm.doc.customer || !frm.doc.company || !frm.doc.currency) {
+		return;
+	}
+
+	(frm.doc.items || []).forEach((row) => {
+		if (row.item_code) {
+			fetch_last_sales_price(frm, row.doctype, row.name);
+		}
+	});
+}
+
+function fetch_last_sales_price(frm, cdt, cdn) {
+	console.log("Fetching last sales price for row:", cdt, cdn);
+	const row = locals[cdt][cdn];
+
+	if (
+		!row ||
+		!row.item_code ||
+		!frm.doc.customer_name ||
+		!frm.doc.company ||
+		!frm.doc.currency
+	) {
+		return;
+	}
+
+	frappe.call({
+		method: "yana_efris.api.efris_api.get_last_sales_price",
+
+		args: {
+			item_code: row.item_code,
+			customer: frm.doc.customer_name,
+			company: frm.doc.company,
+			currency: frm.doc.currency,
+			doctype: "Quotation",
+			current_docname: frm.doc.name,
+		},
+
+		callback(r) {
+			if (!r.message) {
+				row.custom_last_sales_price = null;
+				frm.refresh_field("items");
+				return;
+			}
+
+			row.custom_last_sales_price = r.message.rate;
+			frm.refresh_field("items");
+		},
+	});
+}

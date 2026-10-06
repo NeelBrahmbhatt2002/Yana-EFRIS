@@ -154,11 +154,18 @@ frappe.ui.form.on("Sales Order", {
 	},
 
 	company(frm) {
+		clear_sales_order_last_sales_prices(frm);
+
+		if (frm.doc.company && frm.doc.customer) {
+			load_sales_order_last_sales_prices(frm);
+		}
+
 		toggle_efris_stock_column(frm);
 		update_items_label(frm);
 	},
 	refresh(frm) {
 		console.log("Sales Order Client Script Executed");
+		load_sales_order_last_sales_prices(frm);
 
 		if (frm.doc.docstatus !== 0) return;
 
@@ -226,6 +233,10 @@ frappe.ui.form.on("Sales Order", {
 
 	customer: function (frm) {
 		if (!frm.doc.customer) return;
+		clear_sales_order_last_sales_prices(frm);
+		if (frm.doc.customer) {
+			load_sales_order_last_sales_prices(frm);
+		}
 
 		frappe.call({
 			method: "yana_efris.api.efris_api.get_customer_credit_summary",
@@ -297,34 +308,20 @@ frappe.ui.form.on("Sales Order", {
 		});
 	},
 	currency(frm) {
-		// if (frm.doc.currency && frm.doc.company) {
-		// 	frappe.call({
-		// 		method: "yana_efris.api.efris_api.get_exchange_rate",
-		// 		args: {
-		// 			currency: frm.doc.currency,
-		// 			company_name: frm.doc.company,
-		// 		},
-		// 		callback: function (r) {
-		// 			// console.log("Response is", r);
-		// 			if (!r.message) return;
-
-		// 			if (r.message) {
-		// 				let rate = parseFloat(r.message.rate) || null;
-		// 				if (rate) {
-		// 					frm.set_value("conversion_rate", rate);
-
-		// 					rate !== 1 && frappe.msgprint(`Exchange Rate from EFRIS: ${rate}`);
-		// 				}
-		// 			}
-		// 		},
-		// 	});
-		// }
+		clear_sales_order_last_sales_prices(frm);
+		if (frm.doc.currency && frm.doc.customer) {
+			load_sales_order_last_sales_prices(frm);
+		}
 		fetch_and_set_exchange_rate_common(frm);
+	},
+	items_add(frm, cdt, cdn) {
+		fetch_sales_order_last_sales_price(frm, cdt, cdn);
 	},
 });
 
 frappe.ui.form.on("Sales Order Item", {
 	item_code: function (frm, cdt, cdn) {
+		fetch_sales_order_last_sales_price(frm, cdt, cdn);
 		const row = frappe.get_doc(cdt, cdn);
 		if (!row.item_code || !frm.doc.company) return;
 
@@ -409,3 +406,55 @@ frappe.ui.form.on("Sales Order Item", {
 		});
 	},
 });
+
+function clear_sales_order_last_sales_prices(frm) {
+	(frm.doc.items || []).forEach((row) => {
+		row.custom_last_sales_price = null;
+	});
+
+	frm.refresh_field("items");
+}
+
+function load_sales_order_last_sales_prices(frm) {
+	if (!frm.doc.customer || !frm.doc.company || !frm.doc.currency) {
+		return;
+	}
+
+	(frm.doc.items || []).forEach((row) => {
+		if (row.item_code) {
+			fetch_sales_order_last_sales_price(frm, row.doctype, row.name);
+		}
+	});
+}
+
+function fetch_sales_order_last_sales_price(frm, cdt, cdn) {
+	const row = locals[cdt][cdn];
+
+	if (!row || !row.item_code || !frm.doc.customer || !frm.doc.company || !frm.doc.currency) {
+		return;
+	}
+
+	frappe.call({
+		method: "yana_efris.api.efris_api.get_last_sales_price",
+
+		args: {
+			item_code: row.item_code,
+			customer: frm.doc.customer,
+			company: frm.doc.company,
+			currency: frm.doc.currency,
+			doctype: "Sales Order",
+			current_docname: frm.doc.name,
+		},
+
+		callback(r) {
+			if (!r.message) {
+				row.custom_last_sales_price = null;
+				frm.refresh_field("items");
+				return;
+			}
+
+			row.custom_last_sales_price = r.message.rate;
+			frm.refresh_field("items");
+		},
+	});
+}
