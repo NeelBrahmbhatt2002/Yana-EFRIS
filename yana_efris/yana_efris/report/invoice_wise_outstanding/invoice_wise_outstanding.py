@@ -84,6 +84,12 @@ def get_columns():
             "width": 170,
         },
         {
+            "label": _("Customer Name"),
+            "fieldname": "customer_name",
+            "fieldtype": "Data",
+            "width": 200
+        },
+        {
             "label": _("Invoice Currency"),
             "fieldname": "invoice_currency",
             "fieldtype": "Link",
@@ -139,6 +145,7 @@ def get_columns():
     ]
 
 
+
 def get_data(filters):
     conditions = [
         "si.docstatus = 1",
@@ -165,12 +172,15 @@ def get_data(filters):
             si.name AS invoice,
             si.company,
             si.customer,
+            c.customer_name AS customer_name,
             si.posting_date,
             si.due_date,
             si.currency AS invoice_currency,
             si.base_grand_total AS invoice_amount,
             si.conversion_rate
         FROM `tabSales Invoice` si
+        LEFT JOIN `tabCustomer` c
+            ON c.name = si.customer
         WHERE {conditions}
         ORDER BY si.posting_date, si.name
         """.format(conditions=" AND ".join(conditions)),
@@ -369,6 +379,7 @@ def get_data(filters):
             "posting_date": invoice.posting_date,
             "due_date": invoice.due_date,
             "customer": invoice.customer,
+            "customer_name": invoice.customer_name,
             "invoice_currency": invoice.invoice_currency,
             "invoice_amount": invoice_amount,
             "payment": payment_amount,
