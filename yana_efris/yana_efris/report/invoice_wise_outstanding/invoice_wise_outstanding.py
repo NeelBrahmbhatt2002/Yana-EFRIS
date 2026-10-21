@@ -146,6 +146,8 @@ def get_columns():
 
 
 
+
+
 def get_data(filters):
     conditions = [
         "si.docstatus = 1",
@@ -197,13 +199,16 @@ def get_data(filters):
 
     invoice_names = [row.invoice for row in invoices]
 
-    # Get submitted payment allocations for the selected invoices.
+    # Fetch submitted Payment Entry allocations for the selected invoices.
     payment_rows = frappe.db.sql(
         """
         SELECT
             per.reference_name AS invoice,
             pe.name AS payment_entry,
-            per.allocated_amount
+            per.allocated_amount,
+            COALESCE(
+                per.custom_tax_deduction_amount, 0
+            ) AS custom_tax_deduction_amount
         FROM `tabPayment Entry Reference` per
         INNER JOIN `tabPayment Entry` pe
             ON pe.name = per.parent
@@ -224,6 +229,7 @@ def get_data(filters):
     )
 
     payments = {}
+    deductions = {}
     payment_entry_names = set()
 
     for row in payment_rows:
@@ -233,7 +239,42 @@ def get_data(filters):
         )
         payment_entry_names.add(row.payment_entry)
 
-    # Fetch standard Payment Entry deductions in company currency.
+    # Count all Sales Invoice references for each relevant Payment Entry.
+    # Include references outside the current report filters.
+    invoice_counts = {}
+
+    if payment_entry_names:
+        reference_count_rows = frappe.db.sql(
+            """
+            SELECT
+                per.parent AS payment_entry,
+                COUNT(*) AS invoice_count
+            FROM `tabPayment Entry Reference` per
+            INNER JOIN `tabPayment Entry` pe
+                ON pe.name = per.parent
+            WHERE
+                per.reference_doctype = 'Sales Invoice'
+                AND per.parent IN %(payment_entries)s
+                AND pe.company = %(company)s
+                AND pe.docstatus = 1
+                AND pe.posting_date <= %(as_on_date)s
+            GROUP BY per.parent
+            """,
+            {
+                "payment_entries": tuple(payment_entry_names),
+                "company": filters.company,
+                "as_on_date": filters.as_on_date,
+            },
+            as_dict=True,
+        )
+
+        invoice_counts = {
+            row.payment_entry: row.invoice_count
+            for row in reference_count_rows
+        }
+
+    # Fetch standard Payment Entry deductions.
+    # Use these only when the Payment Entry has one Sales Invoice reference.
     deduction_by_payment = {}
 
     if payment_entry_names:
@@ -265,72 +306,70 @@ def get_data(filters):
             for row in deduction_rows
         }
 
-    # Fetch all Sales Invoice references for these payments so
-    # deductions can be distributed consistently across invoices.
-    refs_by_payment = {}
+    # Apply the confirmed Payment Entry deduction rules:
+    # 1. One invoice reference: use standard deductions.
+    # 2. Multiple invoice references: use invoice-level custom deductions.
+    # Never distribute a standard deduction across multiple invoices.
+    for row in payment_rows:
+        payment_entry = row.payment_entry
+        invoice = row.invoice
 
-    if payment_entry_names:
-        all_references = frappe.db.sql(
-            """
-            SELECT
-                per.parent AS payment_entry,
-                per.reference_name AS invoice,
-                per.allocated_amount
-            FROM `tabPayment Entry Reference` per
-            INNER JOIN `tabPayment Entry` pe
-                ON pe.name = per.parent
-            WHERE
-                per.reference_doctype = 'Sales Invoice'
-                AND per.parent IN %(payment_entries)s
-                AND pe.company = %(company)s
-                AND pe.docstatus = 1
-                AND pe.posting_date <= %(as_on_date)s
-            """,
-            {
-                "payment_entries": tuple(payment_entry_names),
-                "company": filters.company,
-                "as_on_date": filters.as_on_date,
-            },
-            as_dict=True,
-        )
+        invoice_count = invoice_counts.get(payment_entry, 0)
 
-        for ref in all_references:
-            refs_by_payment.setdefault(
-                ref.payment_entry, []
-            ).append(ref)
-
-    deductions = {}
-
-    for payment_entry, references in refs_by_payment.items():
-        total_allocated = sum(
-            flt(ref.allocated_amount)
-            for ref in references
-        )
-        total_deduction = deduction_by_payment.get(
-            payment_entry, 0
-        )
-
-        if not total_allocated or not total_deduction:
-            continue
-
-        for ref in references:
-            if ref.invoice not in invoice_names:
-                continue
-
-            share = (
-                total_deduction
-                * flt(ref.allocated_amount)
-                / total_allocated
+        if invoice_count == 1:
+            deduction_amount = deduction_by_payment.get(
+                payment_entry, 0
+            )
+        else:
+            deduction_amount = flt(
+                row.custom_tax_deduction_amount
             )
 
-            deductions[ref.invoice] = (
-                deductions.get(ref.invoice, 0) + share
-            )
+        deductions[invoice] = (
+            deductions.get(invoice, 0) + deduction_amount
+        )
+
+    # Fetch invoice-linked Journal Entry deductions.
+    # A credit to a receivable account reduces customer receivables.
+    journal_entry_rows = frappe.db.sql(
+        """
+        SELECT
+            jea.reference_name AS invoice,
+            SUM(jea.credit - jea.debit) AS deduction_amount
+        FROM `tabJournal Entry Account` jea
+        INNER JOIN `tabJournal Entry` je
+            ON je.name = jea.parent
+        INNER JOIN `tabAccount` acc
+            ON acc.name = jea.account
+        WHERE
+            jea.reference_type = 'Sales Invoice'
+            AND jea.reference_name IN %(invoice_names)s
+            AND jea.party_type = 'Customer'
+            AND je.company = %(company)s
+            AND je.docstatus = 1
+            AND je.posting_date <= %(as_on_date)s
+            AND acc.account_type = 'Receivable'
+            AND jea.credit > 0
+        GROUP BY jea.reference_name
+        """,
+        {
+            "invoice_names": tuple(invoice_names),
+            "company": filters.company,
+            "as_on_date": filters.as_on_date,
+        },
+        as_dict=True,
+    )
+
+    for row in journal_entry_rows:
+        deductions[row.invoice] = (
+            deductions.get(row.invoice, 0)
+            + flt(row.deduction_amount)
+        )
 
     data = []
 
     for invoice in invoices:
-        # These figures are intended to be in company currency.
+        # Monetary calculations use company currency.
         invoice_amount = flt(invoice.invoice_amount)
         payment_amount = flt(payments.get(invoice.invoice, 0))
         deduction_amount = flt(deductions.get(invoice.invoice, 0))
