@@ -2544,26 +2544,58 @@ def get_company_fiscal_year(company):
 
     return fiscal_year
 
+# def get_sales_amount(company, from_date, to_date):
+
+#     amount = frappe.db.sql(
+#         """
+#         SELECT
+#             COALESCE(SUM(base_net_total), 0)
+#         FROM `tabSales Invoice`
+#         WHERE
+#             docstatus = 1
+#             AND company = %s
+#             AND posting_date BETWEEN %s AND %s
+#         """,
+#         (
+#             company,
+#             from_date,
+#             to_date
+#         )
+#     )[0][0]
+
+#     return flt(amount)
+
+
 def get_sales_amount(company, from_date, to_date):
 
     amount = frappe.db.sql(
         """
         SELECT
-            COALESCE(SUM(base_net_total), 0)
-        FROM `tabSales Invoice`
+            COALESCE(SUM(si.base_net_total), 0)
+        FROM `tabSales Invoice` si
         WHERE
-            docstatus = 1
-            AND company = %s
-            AND posting_date BETWEEN %s AND %s
+            si.docstatus = 1
+            AND si.company = %s
+            AND si.posting_date BETWEEN %s AND %s
+            AND NOT EXISTS (
+                SELECT 1
+                FROM `tabSales Invoice Item` sii
+                WHERE
+                    sii.parent = si.name
+                    AND sii.parenttype = 'Sales Invoice'
+                    AND sii.item_name = %s
+            )
         """,
         (
             company,
             from_date,
-            to_date
+            to_date,
+            "Opening Invoice Item"
         )
     )[0][0]
 
     return flt(amount)
+
 
 def get_daily_sales(company):
 
@@ -3522,6 +3554,14 @@ def get_salesperson_performance_ranking():
                 AND (
                     si.custom_sales_person_name IS NULL
                     OR si.custom_sales_person_name = ''
+                )
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM `tabSales Invoice Item` sii
+                    WHERE
+                        sii.parent = si.name
+                        AND sii.parenttype = 'Sales Invoice'
+                        AND sii.item_name = 'Opening Invoice Item'
                 )
             """,
             (
