@@ -3499,6 +3499,14 @@ def get_salesperson_performance_ranking():
                 AND si.posting_date BETWEEN %s AND %s
                 AND si.custom_sales_person_name IS NOT NULL
                 AND si.custom_sales_person_name != ''
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM `tabSales Invoice Item` sii
+                    WHERE
+                        sii.parent = si.name
+                        AND sii.parenttype = 'Sales Invoice'
+                        AND sii.item_name = 'Opening Invoice Item'
+                )
             GROUP BY
                 si.custom_sales_person_name
             ORDER BY
