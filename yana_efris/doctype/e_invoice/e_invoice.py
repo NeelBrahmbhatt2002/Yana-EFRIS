@@ -245,85 +245,179 @@ def get_tax_details(self):
 
     return {"taxDetails": tax_details_list}
 
+# def get_good_details(self):
+# 		item_list = []
+# 		unique_items = set()
+
+# 		orderNumber = 0
+# 		discount_percentage = self.additional_discount_percentage if self.additional_discount_percentage else 0
+
+# 		item_code = ""
+# 		goodsCode = ""
+# 		discount_tax = 0.0
+# 		discountTaxRate = ""
+
+# 		for row in self.items:
+
+# 			# Decode EFRIS tax rate based on E Tax Category
+# 			taxRate = decode_e_tax_rate(str(row.gst_rate), row.e_tax_category)
+
+# 			# Temporary debug log to verify E Tax Category and decoded tax rate
+# 			frappe.log_error(
+# 				title="EFRIS TAX DEBUG",
+# 				message=f"""
+# Item Code: {row.item_code}
+# GST Rate: {row.gst_rate}
+# E Tax Category: {row.e_tax_category}
+# Decoded Tax Rate: {taxRate}
+# """
+# 			)
+
+# 			item_code = row.item_code
+# 			goodsCode = frappe.db.get_value(
+# 				"Item",
+# 				{"item_code": item_code},
+# 				"efris_product_code"
+# 			)
+
+# 			if goodsCode:
+# 				item_code = goodsCode
+
+# 			# Create a unique identifier for the item
+# 			if self._is_duplicate_item(row, unique_items):
+# 				continue
+
+# 			inv_uom = frappe.get_doc("UOM", row.unit)
+# 			efris_uom_code = inv_uom.efris_uom_code
+
+# 			# Calculate the discount amount if applicable
+# 			discount_amount = 0.0
+# 			discountFlag = "0"
+# 			tax = row.tax
+# 			discounted_item = row.item_name
+
+# 			if discount_percentage > 0:
+# 				discount_amount, discountFlag, discounted_item, discountTaxRate = self.calculate_discounts(
+# 					row,
+# 					discount_percentage,
+# 					taxRate
+# 				)
+
+# 			item, discount_item = self._prepare_item_details(
+# 				row,
+# 				item_code,
+# 				taxRate,
+# 				efris_uom_code,
+# 				discount_percentage,
+# 				orderNumber,
+# 				discount_amount,
+# 				discountFlag,
+# 				discounted_item,
+# 				discountTaxRate
+# 			)
+
+# 			item_list.append(item)
+# 			orderNumber += 1
+
+# 			if discount_item:
+# 				item_list.append(discount_item)
+# 				orderNumber += 1
+
+# 		return {"goodsDetails": item_list}
+
 def get_good_details(self):
-		item_list = []
-		unique_items = set()
+    item_list = []
+    unique_items = set()
 
-		orderNumber = 0
-		discount_percentage = self.additional_discount_percentage if self.additional_discount_percentage else 0
+    orderNumber = 0
+    discount_percentage = (
+        self.additional_discount_percentage
+        if self.additional_discount_percentage
+        else 0
+    )
 
-		item_code = ""
-		goodsCode = ""
-		discount_tax = 0.0
-		discountTaxRate = ""
+    item_code = ""
+    goodsCode = ""
+    discount_tax = 0.0
+    discountTaxRate = ""
 
-		for row in self.items:
+    for row in self.items:
 
-			# Decode EFRIS tax rate based on E Tax Category
-			taxRate = decode_e_tax_rate(str(row.gst_rate), row.e_tax_category)
+        # Decode EFRIS tax rate
+        taxRate = decode_e_tax_rate(
+            str(row.gst_rate),
+            row.e_tax_category
+        )
 
-			# Temporary debug log to verify E Tax Category and decoded tax rate
-			frappe.log_error(
-				title="EFRIS TAX DEBUG",
-				message=f"""
-Item Code: {row.item_code}
-GST Rate: {row.gst_rate}
-E Tax Category: {row.e_tax_category}
-Decoded Tax Rate: {taxRate}
-"""
-			)
+        # Get Item document name from transaction row
+        item_name = row.item_code
 
-			item_code = row.item_code
-			goodsCode = frappe.db.get_value(
-				"Item",
-				{"item_code": item_code},
-				"efris_product_code"
-			)
+        # Fetch EFRIS Product Code and actual Item Code
+        item_data = frappe.db.get_value(
+            "Item",
+            item_name,
+            ["efris_product_code", "item_code"],
+            as_dict=True
+        )
 
-			if goodsCode:
-				item_code = goodsCode
+        # Prioritize EFRIS Product Code.
+        # If unavailable, use the actual ERPNext Item Code.
+        if item_data:
+            goodsCode = item_data.efris_product_code
+            item_code = goodsCode if goodsCode else item_data.item_code
+        else:
+            item_code = item_name
 
-			# Create a unique identifier for the item
-			if self._is_duplicate_item(row, unique_items):
-				continue
+        # Create a unique identifier for the item
+        if self._is_duplicate_item(row, unique_items):
+            continue
 
-			inv_uom = frappe.get_doc("UOM", row.unit)
-			efris_uom_code = inv_uom.efris_uom_code
+        # Get EFRIS UOM Code
+        inv_uom = frappe.get_doc("UOM", row.unit)
+        efris_uom_code = inv_uom.efris_uom_code
 
-			# Calculate the discount amount if applicable
-			discount_amount = 0.0
-			discountFlag = "0"
-			tax = row.tax
-			discounted_item = row.item_name
+        # Calculate discount amount if applicable
+        discount_amount = 0.0
+        discountFlag = "0"
+        tax = row.tax
+        discounted_item = row.item_name
 
-			if discount_percentage > 0:
-				discount_amount, discountFlag, discounted_item, discountTaxRate = self.calculate_discounts(
-					row,
-					discount_percentage,
-					taxRate
-				)
+        if discount_percentage > 0:
+            (
+                discount_amount,
+                discountFlag,
+                discounted_item,
+                discountTaxRate
+            ) = self.calculate_discounts(
+                row,
+                discount_percentage,
+                taxRate
+            )
 
-			item, discount_item = self._prepare_item_details(
-				row,
-				item_code,
-				taxRate,
-				efris_uom_code,
-				discount_percentage,
-				orderNumber,
-				discount_amount,
-				discountFlag,
-				discounted_item,
-				discountTaxRate
-			)
+        # Prepare EFRIS item details
+        item, discount_item = self._prepare_item_details(
+            row,
+            item_code,
+            taxRate,
+            efris_uom_code,
+            discount_percentage,
+            orderNumber,
+            discount_amount,
+            discountFlag,
+            discounted_item,
+            discountTaxRate
+        )
 
-			item_list.append(item)
-			orderNumber += 1
+        item_list.append(item)
+        orderNumber += 1
 
-			if discount_item:
-				item_list.append(discount_item)
-				orderNumber += 1
+        if discount_item:
+            item_list.append(discount_item)
+            orderNumber += 1
 
-		return {"goodsDetails": item_list}
+    return {
+        "goodsDetails": item_list
+    }
 
 def _prepare_item_details(self, row, item_code, tax_rate, efris_uom_code, discount_percentage, order_number, discount_amount, discount_flag, discounted_item, discount_tax_rate):
 

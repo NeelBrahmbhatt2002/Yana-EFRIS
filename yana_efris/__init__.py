@@ -24,7 +24,7 @@ original_stock_in.purchase_uom_validation = efris_api.purchase_uom_validation
 # e_invoice.decode_e_tax_rate = efris_api.decode_e_tax_rate
 
 # original_doceinvoice.EInvoice._prepare_item_details = yana_einvoice._prepare_item_details
-# original_doceinvoice.EInvoice.get_good_details = yana_einvoice.get_good_details
+original_doceinvoice.EInvoice.get_good_details = yana_einvoice.get_good_details
 
 delete_doc.check_permission_and_not_submitted = efris_api.check_permission_and_not_submitted
 
