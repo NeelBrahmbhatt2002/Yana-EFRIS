@@ -3943,3 +3943,171 @@ def get_last_sales_price(
         "document": result[0].name,
         "transaction_date": result[0].transaction_date,
     }
+
+def set_efris_based_on_items(doc, items):
+    """Set EFRIS flag and customer type based on items."""
+
+    for item in items:
+
+        item_name = item.get('item_code')
+
+        if not item_name:
+            continue
+
+        is_efris_item = frappe.db.get_value(
+            'Item',
+            item_name,
+            'efris_item'
+        )
+
+        if is_efris_item:
+
+            doc.efris_invoice = 1
+
+            target_warehouse = item.get('warehouse')
+
+            is_efris_warehouse = frappe.db.get_value(
+                "Warehouse",
+                target_warehouse,
+                "efris_warehouse"
+            )
+
+            if not is_efris_warehouse:
+                frappe.throw(
+                    f"Target Warehouse {target_warehouse} must be an EFRIS Warehouse"
+                )
+
+            customer = doc.get('customer')
+
+            efris_customer_type = frappe.db.get_value(
+                'Customer',
+                {'customer_name': customer},
+                'efris_customer_type'
+            )
+
+            doc.efris_customer_type = efris_customer_type
+
+            doc.flags.ignore_validate_update_after_submit = True
+
+            efris_log_info(
+                "Updated Sales Invoice for EFRIS compliance."
+            )
+
+            break
+
+def _validate_item_uom(item):
+
+    """
+    Validate that the Sales UOM for the item exists
+    in the Item's UOMs list.
+    """
+
+    item_name = item.get('item_code')
+    sales_uom = item.get('uom')
+
+    if not sales_uom:
+        return
+
+    # Fetch Item using its document name
+    item_doc = frappe.get_doc('Item', item_name)
+
+    uoms_detail = item_doc.get('uoms', [])
+
+    if not any(row.uom == sales_uom for row in uoms_detail):
+        frappe.throw(
+            f"The Sales UOM ({sales_uom}) must be in the "
+            f"Item's UOMs list for item {item_name}."
+        )
+
+@frappe.whitelist()
+def before_save_on_purchase_receipt(doc, method):
+
+    efris_log_info(
+        f"Before Save is Called on Purchase Receipt Yana: {doc}"
+    )
+
+    for item in doc.get("items", []):
+
+        efris_log_info(
+            f"Processing item: {item.item_code}"
+        )
+
+        is_efris = item.get('efris_receipt')
+
+        if not is_efris:
+            efris_log_info(
+                f"The Purchase {doc.name} is non EFRIS"
+            )
+            return
+
+        # Item Link contains Item document name
+        item_name = item.get('item_code')
+
+        # Retrieve company using Item document name
+        item_company = frappe.db.get_value(
+            'Item',
+            item_name,
+            'efris_e_company'
+        )
+
+        efris_log_info(
+            f"The Item Company is {item_company}"
+        )
+
+        company = doc.get('company')
+
+        efris_log_info(
+            f"The Purchase Receipt Company is {company}"
+        )
+
+        if item_company != company:
+            frappe.throw(
+                "The Purchase Receipt Company and "
+                "Item's E-Company should be the same"
+            )
+
+@frappe.whitelist()
+def purchase_uom_validation(doc, method):
+    if isinstance(doc, str):
+        try:
+            doc = json.loads(doc)
+        except json.JSONDecodeError:
+            frappe.log_error(
+                "Failed to decode `doc` JSON string",
+                "purchase_uom_validation Error"
+            )
+            return
+
+    efris_log_info(f"purchase_uom_validation called with doc: {doc}")
+
+    items = doc.get('items', [])
+
+    for data in items:
+        item_name = data.get('item_code') if isinstance(data, dict) else data.item_code
+
+        efris_log_info(f"Item Name: {item_name}")
+
+        purchase_uom = data.get('uom') if isinstance(data, dict) else data.uom
+
+        efris_log_info(f"Purchase UOM on Items Child Table: {purchase_uom}")
+
+        if not purchase_uom:
+            continue
+
+        # Fetch Item using its document name
+        item_doc = frappe.get_doc('Item', item_name)
+
+        uoms_detail = item_doc.get('uoms', [])
+
+        efris_log_info(f"Item UOM Details: {uoms_detail}")
+
+        uom_exists = any(
+            row.uom == purchase_uom
+            for row in uoms_detail
+        )
+
+        if not uom_exists:
+            frappe.throw(
+                f"The Purchase UOM ({purchase_uom}) must be in the "
+                f"Item's UOMs list for item {item_name}."
+            )

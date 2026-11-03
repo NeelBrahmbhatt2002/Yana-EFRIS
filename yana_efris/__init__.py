@@ -16,6 +16,11 @@ from frappe.model import delete_doc
 # Override generate_irn (already working fine)
 e_invoice.EInvoiceAPI.generate_irn = efris_api.generate_irn
 e_invoice.EInvoiceAPI.synchronize_e_invoice = efris_api.synchronize_e_invoice
+e_invoice.set_efris_based_on_items = efris_api.set_efris_based_on_items
+e_invoice._validate_item_uom = efris_api._validate_item_uom
+original_stock_in.before_save_on_purchase_receipt = efris_api.before_save_on_purchase_receipt
+original_stock_in.purchase_uom_validation = efris_api.purchase_uom_validation
+
 # e_invoice.decode_e_tax_rate = efris_api.decode_e_tax_rate
 
 # original_doceinvoice.EInvoice._prepare_item_details = yana_einvoice._prepare_item_details
