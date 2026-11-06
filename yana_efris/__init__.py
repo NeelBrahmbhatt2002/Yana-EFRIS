@@ -9,6 +9,12 @@ from uganda_compliance.efris.api_classes import efris_api as original_efris_api
 from uganda_compliance.efris.doctype.e_invoice.e_invoice import EInvoice
 from uganda_compliance.efris.api_classes import stock_in as original_stock_in
 from frappe.model import delete_doc
+import erpnext.accounts.report.general_ledger.general_ledger as original_general_ledger
+from yana_efris.api import gl_report_override
+
+original_general_ledger.get_data_with_opening_closing = (
+    gl_report_override.get_data_with_opening_closing
+)
 # from pos_next.api.sales_invoice_hooks import apply_tax_inclusive
 # from yana_efris.overrides.posnext_sales_invoice import apply_tax_inclusive as patched_apply_tax_inclusive
 # import pos_next.api.sales_invoice_hooks as pos_hooks
