@@ -184,3 +184,84 @@ def document_naming_rule_exists(document_type, company, prefix):
                 return True
 
     return False
+
+
+
+
+def add_company_to_mode_of_payments(doc, method=None):
+    """
+    Add Company to required Modes of Payment after
+    ERPNext has completed its default account setup.
+    """
+
+    company = doc.name
+
+    # Fetch the latest saved Default Cash Account
+    cash_account = frappe.db.get_value(
+        "Company",
+        company,
+        "default_cash_account"
+    )
+
+    if not cash_account:
+        frappe.log_error(
+            title="Mode of Payment Automation",
+            message=f"Default Cash Account not found for Company: {company}"
+        )
+        return
+
+    mode_of_payments = [
+        "Cash",
+        "Cheque",
+        "MM",
+        "Credit Card",
+        "Credit Sales",
+        "EFT",
+        "MTN"
+    ]
+
+    for mode_name in mode_of_payments:
+
+        if not frappe.db.exists("Mode of Payment", mode_name):
+            continue
+
+        savepoint = f"mop_{frappe.scrub(mode_name)}"
+
+        try:
+            frappe.db.savepoint(savepoint)
+
+            mode_doc = frappe.get_doc(
+                "Mode of Payment",
+                mode_name,
+                for_update=True
+            )
+
+            existing_row = next(
+                (
+                    row for row in mode_doc.accounts
+                    if row.company == company
+                ),
+                None
+            )
+
+            if existing_row:
+                if not existing_row.default_account:
+                    existing_row.default_account = cash_account
+                    mode_doc.save(ignore_permissions=True)
+
+                continue
+
+            mode_doc.append("accounts", {
+                "company": company,
+                "default_account": cash_account
+            })
+
+            mode_doc.save(ignore_permissions=True)
+
+        except Exception:
+            frappe.db.rollback(save_point=savepoint)
+
+            frappe.log_error(
+                title=f"Mode of Payment Error: {mode_name}",
+                message=frappe.get_traceback()
+            )

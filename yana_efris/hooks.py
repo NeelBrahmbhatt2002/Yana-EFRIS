@@ -25,7 +25,7 @@ app_include_js = [
     # "/assets/yana_efris/js/report_auto_company.js",
     "/assets/yana_efris/js/sidebar.js?v=2.1.4",
     "/assets/yana_efris/js/open_doctype_new_tab.js",
-    "/assets/yana_efris/js/permission_override.js?v=0.0.1",
+    "/assets/yana_efris/js/permission_override.js?v=0.0.2",
     "/assets/yana_efris/js/bank_reconciliation_tool.js",
     "/assets/yana_efris/js/print_override.js?v=0.0.1",
     "/assets/yana_efris/js/navigation.js?v=0.0.1",
@@ -58,7 +58,8 @@ fixtures = [
 
 doc_events = {
     "Company": {
-        "after_insert": "yana_efris.api.auto_implementation.add_company_to_current_fiscal_year"
+        "after_insert": "yana_efris.api.auto_implementation.add_company_to_current_fiscal_year",
+        "on_update": "yana_efris.api.auto_implementation.add_company_to_mode_of_payments"
     }
     # "Sales Invoice": {
     #     "autoname": "yana_efris.utils.custom_naming.custom_autoname",
