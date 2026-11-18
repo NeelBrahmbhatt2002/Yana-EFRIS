@@ -212,7 +212,6 @@ def add_company_to_mode_of_payments(doc, method=None):
 
     mode_of_payments = [
         "Cash",
-        "Cheque",
         "MM",
         "Credit Card",
         "Credit Sales",
